@@ -134,14 +134,3 @@ docs/epics/epic-12-realtime-collaboration/ ── Anonymous Sign-Ins & Real-Time
 ⚖️ License
 Internal Development Asset Workspace ─ All Rights Reserved.
 
-
----
-
-## 🎯 Next Step Selection
-
-Your project repository root is now completely configured with pristine structural parameters, a comprehensive backlog mapping schema, and a clear `README.md`. It is time to transition into full implementation mode!
-
-1. **Activate Winston (Developer Mode)** to generate the file structures, configuration scripts, and baseline page layouts for **Story 1.1** and **Story 1.2** (Next.js configurations, absolute alias paths, folder skeletons, and the functional `/canary` checking file page).
-2. Request a deep-dive review of a specific utility folder (such as detailing the files inside `utils/math/` ahead of time).
-
-Type a number or send your custom command below to begin coding!
