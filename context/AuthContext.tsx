@@ -62,14 +62,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // whitelist after a previous login, or a token established outside our
     // signIn wrapper) — not just fresh signIn/signUp calls. Fails closed.
     const applySession = async (nextSession: Session | null) => {
-      const email = nextSession?.user?.email;
-      if (email && !(await isWhitelisted(email))) {
-        await supabase.auth.signOut();
-        if (active) {
-          setSession(null);
-          setUser(null);
+      // A session is only accepted if it carries an email that is on the
+      // whitelist. A session with a missing/empty email (e.g. phone or
+      // anonymous auth) is treated as unauthorized — fail closed.
+      if (nextSession) {
+        const email = nextSession.user?.email;
+        if (!email || !(await isWhitelisted(email))) {
+          await supabase.auth.signOut();
+          if (active) {
+            setSession(null);
+            setUser(null);
+          }
+          return;
         }
-        return;
       }
       if (active) {
         setSession(nextSession);
