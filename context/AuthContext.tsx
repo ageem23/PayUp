@@ -57,18 +57,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setLoading(false);
+    // Accept a session only if its user is still whitelisted. This guards
+    // re-hydrated and refreshed sessions (e.g. a user removed from the
+    // whitelist after a previous login, or a token established outside our
+    // signIn wrapper) — not just fresh signIn/signUp calls. Fails closed.
+    const applySession = async (nextSession: Session | null) => {
+      const email = nextSession?.user?.email;
+      if (email && !(await isWhitelisted(email))) {
+        await supabase.auth.signOut();
+        if (active) {
+          setSession(null);
+          setUser(null);
+        }
+        return;
+      }
+      if (active) {
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
+      }
+    };
+
+    supabase.auth.getSession().then(async ({ data }) => {
+      await applySession(data.session);
+      if (active) {
+        setLoading(false);
+      }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setUser(nextSession?.user ?? null);
+      // signOut() inside applySession re-fires this with a null session, which
+      // takes the no-email path below — no infinite loop.
+      void applySession(nextSession);
     });
 
     return () => {

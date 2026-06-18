@@ -4,7 +4,7 @@ baseline_commit: 005638388956e7a4af741ffa04dfd18b31113845
 
 # Story 2.2: Supabase Auth Integration & Whitelist Enforcement Core Hook
 
-Status: done
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -24,12 +24,13 @@ so that only invited users can hold a session, and the rest of the app can read 
 
 - [x] **Create the auth context** (AC: #3) — `context/AuthContext.tsx` as a client component (`"use client"`): an `AuthProvider` holding `user`/`session`/`loading` state (hydrated via `supabase.auth.getSession()` + `onAuthStateChange`), and a `useAuth()` hook that throws if used outside the provider.
 - [x] **Login/logout wrappers** (AC: #1) — `signIn(email, password)`, `signUp(email, password)`, `signOut()` using `supabase.auth.*` from `@/utils/supabase/client`. Return a typed `{ error: string | null }` result for the caller (Story 2.3 UI) to display.
-- [ ] **Whitelist enforcement** (AC: #2) — A helper that queries `allowed_users` by email:
+- [x] **Whitelist enforcement** (AC: #2) — A helper that queries `allowed_users` by a normalized email (Supabase Auth lowercases emails, so the lookup must too):
   ```typescript
+  const normalizedEmail = email.trim().toLowerCase();
   const { data, error } = await supabase
     .from("allowed_users")
     .select("email")
-    .eq("email", email)
+    .eq("email", normalizedEmail)
     .maybeSingle();
   ```
   - On sign-**up**: check the whitelist **before** calling `signUp` (avoid creating an orphan auth account that isn't whitelisted).
@@ -108,3 +109,4 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-ship-story pipeline
 |---|---|---|---|
 | 2026-06-18 | 1.1.0 | Added `AuthContext` (Supabase auth wrappers + `allowed_users` whitelist enforcement, fail-closed). Unwired to keep CI green. Lint/build clean. Status → review. | Amelia (Dev) |
 | 2026-06-18 | 1.2.0 | Local review found+fixed a case-sensitive whitelist lookup bug (normalize email). CI green on PR #3. CodeRabbit (still Free tier on PR #3, opened while repo was private) produced summary only — no actionable findings. Status → done (ready-to-merge). | Amelia (Dev) |
+| 2026-06-18 | 1.3.0 | CodeRabbit (Pro) review (4 findings). **Fixed:** session hydration + `onAuthStateChange` now re-validate the whitelist (previously only signIn/signUp did — a removed/external session would persist); updated 2-2 doc query example to show normalization + checked the enforcement task. **Skipped (with reason):** 2-1 markdownlint MD022/MD031 and AC-bullet rewording — internal planning doc, repo runs no markdown linting; declined to avoid whitespace/prose churn. Status → review (re-review cycle). | Amelia (Dev) |
