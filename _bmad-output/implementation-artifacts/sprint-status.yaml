@@ -57,15 +57,15 @@ development_status:
   epic-2-retrospective: optional
 
   # Epic 3: Trip Management & Participant Schema Seeding
-  epic-3: in-progress
+  epic-3: done
   3-1-trip-creation: done
   3-2-dashboard-hub: done
   epic-3-retrospective: optional
 
   # Epic 4: Receipt Image Storage Pipeline & Ingestion Processing
-  epic-4: backlog
-  4-1-storage-dropzone: backlog
-  4-2-receipt-staging: backlog
+  epic-4: done
+  4-1-storage-dropzone: done
+  4-2-receipt-staging: done
   epic-4-retrospective: optional
 
   # Epic 5: Ingested Line-Item Matrix Rendering
