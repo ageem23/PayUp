@@ -24,7 +24,6 @@ export default function TripHubPage() {
   const [loadingTrip, setLoadingTrip] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stagingUrl, setStagingUrl] = useState<string | null>(null);
-  const [addedCount, setAddedCount] = useState(0);
 
   const loadTrip = useCallback(
     async (userId: string) => {
@@ -97,11 +96,6 @@ export default function TripHubPage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Add a receipt</h2>
         <ReceiptUploadZone onUploaded={(url) => setStagingUrl(url)} />
-        {addedCount > 0 ? (
-          <p className="text-sm text-green-700">
-            Receipt added ✓ ({addedCount} this session)
-          </p>
-        ) : null}
       </section>
 
       {stagingUrl ? (
@@ -110,9 +104,9 @@ export default function TripHubPage() {
           participants={trip.participants ?? []}
           imageUrl={stagingUrl}
           onClose={() => setStagingUrl(null)}
-          onCreated={() => {
+          onCreated={(receiptId) => {
             setStagingUrl(null);
-            setAddedCount((count) => count + 1);
+            router.push(`/trips/${trip.id}/receipts/${receiptId}`);
           }}
         />
       ) : null}
