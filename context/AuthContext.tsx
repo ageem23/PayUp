@@ -11,7 +11,7 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/utils/supabase/client";
 
-const NOT_AUTHORIZED_MESSAGE =
+export const NOT_AUTHORIZED_MESSAGE =
   "This email is not authorized to access PayUp. Contact an administrator to be added to the whitelist.";
 
 type AuthResult = { error: string | null };

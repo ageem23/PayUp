@@ -34,3 +34,10 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Placeholder values so the Supabase client's env guard passes during
+          # the build/prerender (the runner has no .env.local). createClient()
+          # makes no network calls at construction, so these are never used to
+          # connect — they only satisfy the module-init check.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
