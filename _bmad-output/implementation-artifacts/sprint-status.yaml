@@ -46,7 +46,7 @@ development_status:
   epic-1: in-progress
   1-1-boilerplate: done
   1-2-canary: done
-  1-3-supabase: backlog
+  1-3-supabase: review
   epic-1-retrospective: optional
 
   # Epic 2: Whitelist Gatekeeping & Authentication Layer
