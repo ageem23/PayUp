@@ -50,8 +50,8 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Whitelist Gatekeeping & Authentication Layer
-  epic-2: backlog
-  2-1-whitelist-schema: backlog
+  epic-2: in-progress
+  2-1-whitelist-schema: review
   2-2-whitelist-enforcement: backlog
   2-3-auth-ui: backlog
   epic-2-retrospective: optional
