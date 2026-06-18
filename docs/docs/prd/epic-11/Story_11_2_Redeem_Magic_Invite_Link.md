@@ -5,7 +5,7 @@
 # Story 11.2: Redeem Magic Invite Link
 
 ### Status
-**Done**
+**Ready for Development**
 
 ### Story
 **As a** user who has received a 'Magic Invite Link',

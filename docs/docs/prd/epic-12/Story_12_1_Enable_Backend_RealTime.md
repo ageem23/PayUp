@@ -3,7 +3,7 @@
 # Story 12.1: Enable Backend for Real-Time Collaboration
 
 ### Status
-**Approved / Ready for Dev**
+**Ready for Development**
 
 ### Story
 **As a** developer,

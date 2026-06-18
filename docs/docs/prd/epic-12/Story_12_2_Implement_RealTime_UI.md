@@ -1,7 +1,7 @@
 # Story 12.2: Implement Real-Time Collaboration UI
 
 ### Status
-**Approved / Ready for Dev**
+**Ready for Development**
 
 ### Story
 **As a** collaborating user,

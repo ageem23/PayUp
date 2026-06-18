@@ -1,7 +1,7 @@
 # Story 11.1: Generate and Manage Invite Links
 
 ### Status
-**Done**
+**Ready for Development**
 
 ### Story
 **As a** trip owner,
