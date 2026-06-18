@@ -5,8 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
-
-type LineItem = { id: string; name: string; price: number };
+import {
+  MatrixStateWrapper,
+  type LineItem,
+} from "@/components/feature/MatrixStateWrapper";
 
 type Trip = { id: string; name: string; participants: string[] | null };
 
@@ -100,9 +102,6 @@ export default function ReceiptMatrixPage() {
   }
 
   const participants = trip.participants ?? [];
-  const items = Array.isArray(receipt.processed_data)
-    ? receipt.processed_data
-    : [];
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl p-4 sm:p-6">
@@ -128,44 +127,47 @@ export default function ReceiptMatrixPage() {
         </div>
 
         <div className="overflow-x-auto">
-          {items.length === 0 ? (
-            <p className="text-sm text-neutral-500">No items yet.</p>
-          ) : (
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-neutral-300">
-                  <th className="px-3 py-2 text-left font-semibold">Item</th>
-                  <th className="px-3 py-2 text-right font-semibold">Cost</th>
-                  {participants.map((person) => (
-                    <th
-                      key={person}
-                      className="px-3 py-2 text-center font-semibold"
-                    >
-                      {person}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id} className="border-b border-neutral-200">
-                    <td className="px-3 py-2">{item.name}</td>
-                    <td className="px-3 py-2 text-right">
-                      ${item.price.toFixed(2)}
-                    </td>
+          <MatrixStateWrapper
+            receiptId={receipt.id}
+            initialProcessedData={receipt.processed_data}
+          >
+            {(items) => (
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-300">
+                    <th className="px-3 py-2 text-left font-semibold">Item</th>
+                    <th className="px-3 py-2 text-right font-semibold">Cost</th>
                     {participants.map((person) => (
-                      <td
+                      <th
                         key={person}
-                        className="px-3 py-2 text-center text-neutral-300"
+                        className="px-3 py-2 text-center font-semibold"
                       >
-                        —
-                      </td>
+                        {person}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.id} className="border-b border-neutral-200">
+                      <td className="px-3 py-2">{item.name}</td>
+                      <td className="px-3 py-2 text-right">
+                        ${item.price.toFixed(2)}
+                      </td>
+                      {participants.map((person) => (
+                        <td
+                          key={person}
+                          className="px-3 py-2 text-center text-neutral-300"
+                        >
+                          —
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </MatrixStateWrapper>
         </div>
       </div>
     </main>
