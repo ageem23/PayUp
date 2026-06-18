@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import { ReceiptUploadZone } from "@/components/feature/ReceiptUploadZone";
+import { ReceiptStagingModal } from "@/components/feature/ReceiptStagingModal";
 
 type Trip = {
   id: string;
@@ -22,7 +23,8 @@ export default function TripHubPage() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loadingTrip, setLoadingTrip] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [stagingUrl, setStagingUrl] = useState<string | null>(null);
+  const [addedCount, setAddedCount] = useState(0);
 
   const loadTrip = useCallback(
     async (userId: string) => {
@@ -94,21 +96,26 @@ export default function TripHubPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Add a receipt</h2>
-        <ReceiptUploadZone onUploaded={(url) => setUploadedUrl(url)} />
-        {uploadedUrl ? (
+        <ReceiptUploadZone onUploaded={(url) => setStagingUrl(url)} />
+        {addedCount > 0 ? (
           <p className="text-sm text-green-700">
-            Uploaded ✓ —{" "}
-            <a
-              href={uploadedUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline"
-            >
-              view image
-            </a>
+            Receipt added ✓ ({addedCount} this session)
           </p>
         ) : null}
       </section>
+
+      {stagingUrl ? (
+        <ReceiptStagingModal
+          tripId={trip.id}
+          participants={trip.participants ?? []}
+          imageUrl={stagingUrl}
+          onClose={() => setStagingUrl(null)}
+          onCreated={() => {
+            setStagingUrl(null);
+            setAddedCount((count) => count + 1);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
