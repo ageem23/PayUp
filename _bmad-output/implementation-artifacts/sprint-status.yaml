@@ -63,7 +63,7 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: Receipt Image Storage Pipeline & Ingestion Processing
-  epic-4: in-progress
+  epic-4: done
   4-1-storage-dropzone: done
   4-2-receipt-staging: done
   epic-4-retrospective: optional
