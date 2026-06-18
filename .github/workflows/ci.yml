@@ -41,3 +41,11 @@ jobs:
           # connect — they only satisfy the module-init check.
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+
+      - name: Test
+        run: npm test
+        env:
+          # Tests mock the Supabase client, but provide placeholders so any
+          # un-mocked import doesn't trip the module-init env guard.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
