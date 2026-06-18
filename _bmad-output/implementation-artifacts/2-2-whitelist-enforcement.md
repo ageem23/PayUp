@@ -4,7 +4,7 @@ baseline_commit: 005638388956e7a4af741ffa04dfd18b31113845
 
 # Story 2.2: Supabase Auth Integration & Whitelist Enforcement Core Hook
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -107,3 +107,4 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-ship-story pipeline
 | Date | Version | Description | Author |
 |---|---|---|---|
 | 2026-06-18 | 1.1.0 | Added `AuthContext` (Supabase auth wrappers + `allowed_users` whitelist enforcement, fail-closed). Unwired to keep CI green. Lint/build clean. Status → review. | Amelia (Dev) |
+| 2026-06-18 | 1.2.0 | Local review found+fixed a case-sensitive whitelist lookup bug (normalize email). CI green on PR #3. CodeRabbit (still Free tier on PR #3, opened while repo was private) produced summary only — no actionable findings. Status → done (ready-to-merge). | Amelia (Dev) |
