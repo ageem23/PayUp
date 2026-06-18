@@ -78,7 +78,7 @@ development_status:
   epic-6: in-progress
   6-1-checkbox-grid: done
   6-2-jsonb-patch: done
-  6-3-gemini-ocr: backlog
+  6-3-gemini-ocr: done
   epic-6-retrospective: optional
 
   # Epic 7: Precision Algorithmic Multipliers (Tax & Tip Metrics)
