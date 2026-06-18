@@ -43,16 +43,16 @@ story_location: "{project-root}/_bmad-output/implementation-artifacts"
 
 development_status:
   # Epic 1: System Scaffolding, Core Infrastructure & CI/CD Verification
-  epic-1: in-progress
+  epic-1: done
   1-1-boilerplate: done
   1-2-canary: done
-  1-3-supabase: review
+  1-3-supabase: done
   epic-1-retrospective: optional
 
   # Epic 2: Whitelist Gatekeeping & Authentication Layer
-  epic-2: backlog
-  2-1-whitelist-schema: backlog
-  2-2-whitelist-enforcement: backlog
+  epic-2: in-progress
+  2-1-whitelist-schema: done
+  2-2-whitelist-enforcement: review
   2-3-auth-ui: backlog
   epic-2-retrospective: optional
 
