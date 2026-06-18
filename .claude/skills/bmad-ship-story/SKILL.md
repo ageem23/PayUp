@@ -86,16 +86,29 @@ Run this whenever the PR head has code that hasn't yet had a local review (track
 2. Watch it: `gh run watch {run_id} --exit-status`.
 3. If CI fails: read `gh run view {run_id} --log-failed`, fix the cause, push, and return to this step. (3 consecutive CI failures on the same cause → STOP and ask the user.)
 
-### Step 8 — Watch the PR for external feedback (the loop tick)
+### Step 8 — CodeRabbit review loop (the loop tick)
 
-This is the phase `/loop` re-enters. On each tick:
+This is the phase `/loop` re-enters: keep cycling implement→push→re-review until CodeRabbit (and any human reviewer) has no new actionable feedback. On each tick:
 
-1. Pull current PR state:
-   - Review decision: `gh pr view {pr_number} --json reviewDecision,reviews,comments,statusCheckRollup`.
-   - Inline review comments: `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments --paginate`.
-2. Identify **actionable, unresolved** comments authored by anyone other than yourself since your last addressed SHA (humans, bots like CodeRabbit, or findings from a user-run `/code-review ultra`). Ignore your own bot-trail comments from Step 6 and resolved threads.
-3. For each actionable comment: implement the change (or reply on the thread with a clear reason if declining), commit, push. Reply to each addressed thread referencing the fixing commit. Then return to Step 7 (re-verify CI).
-4. If there are **no** unresolved actionable comments AND CI is green → proceed to Step 9.
+**8a. Read the latest review — from the review BODY, not just inline counts.**
+- `gh pr view {pr_number} --json reviews` → take the **last** review by `coderabbitai`. CodeRabbit puts its findings in the **review body** as `Actionable comments posted: N`, with the per-finding detail inside the `🤖 Prompt for all review comments` block (file + line + what to change). It also posts inline threads: `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments --paginate` (filter `user.login=="coderabbitai"`).
+- Also check the review's commit range (`…between <base> and <sha>`) — only trust a review whose `<sha>` matches the **current PR head**. A review for an older head is stale; wait for the re-review of your latest push.
+
+**8b. Detect convergence (terminal signal).** CodeRabbit, when it finds nothing on a push, often posts **no new review at all** (no explicit approval). So "clean" = AND CI is green AND one of:
+- the newest CodeRabbit review **whose reviewed head SHA matches the current PR head** says `Actionable comments posted: 0`; or
+- **at least one full wake cadence has elapsed since your push with still no CodeRabbit review for the current head** — use the concrete cadences from "Driving with /loop" as the timeout (≈270s after a re-review push; ≈1200–1800s for a first review), not a vague "wait a bit". Until that timeout passes with no review, treat it as "review still pending", **not** converged — this avoids mistaking a slow/rate-limited review for a clean result.
+
+When clean → go to Step 9.
+
+**8c. Triage findings (don't apply blindly).** For each actionable finding, verify it against the current code (CodeRabbit's own prompt says "fix only still-valid issues, skip the rest with a brief reason"):
+- **Fix** real correctness/security/accuracy issues with minimal changes. (In practice CodeRabbit Pro catches genuine bugs — e.g. fail-open auth paths — that a single local pass misses; take security findings seriously.)
+- **Skip** low-value style nits that the repo doesn't enforce (e.g. markdownlint on internal `_bmad-output/` docs when no markdown linter runs) — but always with a one-line reason.
+
+**8d. Apply, validate, push.** Implement the fixes, re-run `npm run lint` + `npm run build` (Step 7 gate), commit (clear message), and `git push`. The push is a `synchronize` event that **auto-triggers CodeRabbit's re-review** — you do not need to ask for one. (If you ever need to force it: comment `@coderabbitai full review`.)
+
+**8e. Reply for the audit trail.** Post one PR comment addressed to `@coderabbitai` listing each finding as Fixed (with commit SHA) or Skipped (with reason). Then loop back to 8a for the next tick.
+
+**Anti-churn guard:** cap at ~3–4 fix→re-review rounds. If a round surfaces only findings you've already consciously skipped (same nits recurring) and no new actionable ones, treat it as converged, note it, and go to Step 9. Never loop forever chasing subjective style.
 
 ### Step 9 — Ready-to-merge (terminal)
 
@@ -108,8 +121,8 @@ When CI is green and there is no open actionable feedback:
 ## Driving with /loop
 
 - **Watch phase:** to keep picking up external PR feedback, run this skill under `/loop` (dynamic mode): `/loop ship story {story_id}`. Each tick re-enters at the current state — early ticks fly through Steps 1–7 once; later ticks sit in Step 8 addressing feedback; the loop ends itself when Step 9 is reached (omit the next ScheduleWakeup).
-- **Wake cadence:** in the watch phase, prefer a fallback heartbeat of ~1200–1800s between checks (PR review feedback arrives on human timescales; tighter polling just burns context). If a user said they'll run `/code-review ultra` shortly, a one-off shorter check is fine.
-- **Standalone (no loop):** the skill still runs Steps 0–7 to completion and does ONE Step 8 check. If external review is expected but absent, it reports "PR open and green; no external feedback yet" and tells the user to run it under `/loop` (or to run `/code-review ultra {pr_number}`) to continue watching.
+- **Wake cadence:** CodeRabbit's **first** review on a PR can take a while (observed up to ~20+ min); its **re-reviews** after a push are usually faster (1–5 min). So: after opening a PR, a ~1200–1800s heartbeat is right; right after pushing a fix, a shorter ~270s re-check (cache-warm) catches the re-review sooner. Don't long-foreground-poll — re-check on wakeup ticks.
+- **Standalone (no loop):** the skill still runs Steps 0–7 to completion and does ONE Step 8 check. If CodeRabbit hasn't posted yet, it reports "PR open and green; awaiting CodeRabbit" and tells the user to run it under `/loop` to keep cycling the review loop.
 
 ## Project learnings baked in (PayUp)
 
@@ -117,5 +130,6 @@ When CI is green and there is no open actionable feedback:
 - **"Tested" = `npm run lint` + `npm run build` clean.** No unit-test framework is installed and none should be added (dependency-light). CI runs exactly these two.
 - **Story status flow:** `backlog → ready-for-dev → in-progress → review → done`. The `baseline_commit` frontmatter (added by `dev-story`) defines the review diff range.
 - **`gh` is available and is the required tool** for all GitHub operations on this repo.
+- **CodeRabbit (PR reviewer) specifics:** configured via `.coderabbit.yaml` (auto-reviews PRs to `main`). It gives full **Pro line-by-line** reviews free on **public** repos, but **the plan tier is bound at PR-open time** — a PR opened while the repo was private stays on the limited "Free" tier (summary only) for its life, even after the repo goes public. Fix: ensure the repo is public, then **open a fresh PR** (close/reopen) so the new PR gets Pro. Findings arrive in the **review body** (`Actionable comments posted: N`), not always as inline threads.
 - **Benign noise to ignore:** Git's `LF will be replaced by CRLF` warnings, and the CI annotation that `actions/checkout@v4`/`setup-node@v4` use the runner's deprecated Node 20 runtime (unrelated to our app's `node-version`).
 - **`_bmad-output/` is committed** (tracked artifacts); `.claude/`, `.agents/`, `_bmad/`, `node_modules/`, `.next/`, and `.env*.local` are gitignored.
