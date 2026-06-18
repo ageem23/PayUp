@@ -1,5 +1,9 @@
 # BMad tooling / skill installation (kept local, not committed)
-.claude/
+# Ignore all of .claude EXCEPT our own project skill(s) we want version-controlled.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/bmad-ship-story/
 .agents/
 _bmad/
 

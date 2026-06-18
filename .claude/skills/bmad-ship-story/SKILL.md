@@ -1,0 +1,121 @@
+---
+name: bmad-ship-story
+description: 'Run a single story end-to-end: create it, implement it, open a PR to main, review it (local code-review + watch the PR for external feedback), and iterate implement↔review until the PR is clean and ready-to-merge. Use when the user says "ship a story", "ship the next story", "run the story pipeline", or "ship story <id>". Designed to be driven by /loop for the watch phase.'
+---
+
+# Ship Story Pipeline
+
+**Goal:** Take one story from idea to a green, reviewed, ready-to-merge PR — fully autonomously where possible, incorporating external PR feedback where it exists.
+
+**Your Role:** Delivery driver. You orchestrate the existing BMad skills (`bmad-create-story`, `bmad-dev-story`, `code-review`) plus GitHub, and you own the implement↔review loop until the PR has no open feedback and CI is green. You then STOP — you do not merge.
+
+This skill is a **resumable state machine**. Every run detects the current state from `sprint-status.yaml`, git, and the PR, then advances as far as it can. It is safe to re-run; it never repeats a completed phase. The watch phase (Phase 5) is meant to be driven by `/loop` so external review feedback gets picked up on each tick.
+
+## Conventions
+
+- `{project-root}` is the repo working directory.
+- `implementation_artifacts` = `{project-root}/_bmad-output/implementation-artifacts`
+- `sprint_status` = `{implementation_artifacts}/sprint-status.yaml`
+- `story_file` = `{implementation_artifacts}/{story_key}.md` (e.g. `1-3-supabase.md`)
+- All GitHub operations use the `gh` CLI (project rule). Never guess CI/PR state — query it.
+- Default base branch is `main`. Work happens on a non-`main` feature branch.
+
+## Hard rules
+
+- **NEVER merge the PR** and never push to `main` directly. Terminal state is "ready-to-merge".
+- **NEVER commit secrets.** `.env.local` and `.env*.local` are gitignored — keep it that way; never `git add -f` them.
+- **NEVER mark a story `done` on unverified work.** `done` requires: all story tasks checked, local `lint`+`build` clean, CI green on the PR head commit, and no unresolved actionable PR review comments.
+- Only edit the story file in the permitted areas (Status, Tasks checkboxes, Dev Agent Record, File List, Change Log, frontmatter `baseline_commit`) — same contract as `bmad-dev-story`.
+- Quote tool/CI/PR output rather than asserting success. If a step fails, surface it and stop; do not fake completion.
+
+## Inputs
+
+- Optional argument: a story identifier (`1.3`, `1-3`, `1-3-supabase`) or a story file path. If omitted, auto-discover the target (see Step 1).
+
+## Workflow
+
+### Step 0 — Preflight
+
+1. Confirm `gh auth status` is authenticated and `git` is available. If `gh` is not authenticated, STOP and tell the user to run `gh auth login`.
+2. Read `sprint_status` fully (top to bottom — order matters).
+3. Determine the repo default branch: `git symbolic-ref refs/remotes/origin/HEAD` (fallback `main`).
+
+### Step 1 — Resolve the target story
+
+- **If an argument was given:** parse `epic_num`, `story_num`; resolve `story_key` by matching the `N-M-*` key in `sprint_status` (or use the provided file path).
+- **If no argument:** pick the FIRST story key (top-to-bottom) in `development_status` whose status is **not** `done` and is not an `epic-*`/`*-retrospective` key. This is the target. (A story already `in-progress`/`review` is resumed; a `backlog`/`ready-for-dev` story is started.)
+- If every story is `done`, report that the sprint is complete and STOP.
+- Set `story_key`, `story_id` (`epic.story`), `story_file`.
+
+### Step 2 — Branch setup
+
+- If currently on `main`: create/checkout a feature branch. Prefer an existing epic branch matching the epic (e.g. `epic-{epic_num}`) if it exists and is ahead of `main`; otherwise create `feat/{story_key}` off `main`.
+- If already on a non-`main` feature branch: use it (stories in an epic accumulate on the epic branch before any merge — do not branch per story off `main`, or later stories will miss earlier unmerged work).
+- Record the branch as `work_branch`.
+
+### Step 3 — Create the story (if needed)
+
+- If `development_status[story_key]` is `backlog` (or the story file doesn't exist): invoke the **`bmad-create-story`** skill for this story. It writes the story file and flips status to `ready-for-dev`.
+- If the story file already exists and status is `ready-for-dev` or later: skip creation.
+
+### Step 4 — Implement the story (if needed)
+
+- If status is `ready-for-dev` or `in-progress`: invoke the **`bmad-dev-story`** skill for this story. It implements all tasks, runs `lint`+`build`, fills the Dev Agent Record, and sets status to `review`.
+- If status is already `review`/`done`: skip implementation (it's been built; we're here to review/ship).
+- After `dev-story` returns, ensure the work is committed and pushed:
+  - `git add -A` (respecting `.gitignore`), commit with a clear message ending in the `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>` trailer, then `git push -u origin {work_branch}`.
+
+### Step 5 — Open (or find) the PR to main
+
+1. Check for an existing PR for this branch: `gh pr list --head {work_branch} --base {default_branch} --state open --json number,url`.
+2. If none exists, create one: `gh pr create --base {default_branch} --head {work_branch} --title "{story_id}: {story title}" --body "<summary>"`. Build the body from the story's Story statement + Acceptance Criteria + a short "Verification" line (lint/build/CI). Include `Story: {story_key}`.
+3. Record `pr_number` and `pr_url`. Report the PR URL to the user.
+
+### Step 6 — Local review pass (once per new code state)
+
+Run this whenever the PR head has code that hasn't yet had a local review (track via the head SHA you last reviewed; on first reach, always run it).
+
+1. Determine the review range: `baseline_commit..HEAD` from the story frontmatter (falls back to `{default_branch}...HEAD` if absent).
+2. Invoke the **`code-review`** skill scoped to that range with `--comment` so findings post as inline PR comments (audit trail), e.g. `code-review high --comment {pr_number}`. Use effort `high` by default.
+3. For each CONFIRMED/PLAUSIBLE finding: implement the fix (or consciously reject it with a one-line reason in the story Dev Agent Record). Re-run `lint`+`build` to confirm clean.
+4. Commit + push the fixes. Record the new head SHA as "locally reviewed".
+
+### Step 7 — Verify CI on the PR head
+
+1. Find the run for the current head SHA: `gh run list --branch {work_branch} --limit 5 --json databaseId,headSha,status,conclusion` (match `headSha`).
+2. Watch it: `gh run watch {run_id} --exit-status`.
+3. If CI fails: read `gh run view {run_id} --log-failed`, fix the cause, push, and return to this step. (3 consecutive CI failures on the same cause → STOP and ask the user.)
+
+### Step 8 — Watch the PR for external feedback (the loop tick)
+
+This is the phase `/loop` re-enters. On each tick:
+
+1. Pull current PR state:
+   - Review decision: `gh pr view {pr_number} --json reviewDecision,reviews,comments,statusCheckRollup`.
+   - Inline review comments: `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments --paginate`.
+2. Identify **actionable, unresolved** comments authored by anyone other than yourself since your last addressed SHA (humans, bots like CodeRabbit, or findings from a user-run `/code-review ultra`). Ignore your own bot-trail comments from Step 6 and resolved threads.
+3. For each actionable comment: implement the change (or reply on the thread with a clear reason if declining), commit, push. Reply to each addressed thread referencing the fixing commit. Then return to Step 7 (re-verify CI).
+4. If there are **no** unresolved actionable comments AND CI is green → proceed to Step 9.
+
+### Step 9 — Ready-to-merge (terminal)
+
+When CI is green and there is no open actionable feedback:
+
+1. Mark the story `done`: set `Status: done` in the story file, add a Change Log entry summarizing review outcome, and set `development_status[{story_key}] = done` + `last_updated` in `sprint_status`. Commit + push these doc updates.
+2. Report to the user: PR URL, review decision, CI status, and the explicit line: **"Ready to merge — leaving the merge to you."**
+3. STOP. Do not merge.
+
+## Driving with /loop
+
+- **Watch phase:** to keep picking up external PR feedback, run this skill under `/loop` (dynamic mode): `/loop ship story {story_id}`. Each tick re-enters at the current state — early ticks fly through Steps 1–7 once; later ticks sit in Step 8 addressing feedback; the loop ends itself when Step 9 is reached (omit the next ScheduleWakeup).
+- **Wake cadence:** in the watch phase, prefer a fallback heartbeat of ~1200–1800s between checks (PR review feedback arrives on human timescales; tighter polling just burns context). If a user said they'll run `/code-review ultra` shortly, a one-off shorter check is fine.
+- **Standalone (no loop):** the skill still runs Steps 0–7 to completion and does ONE Step 8 check. If external review is expected but absent, it reports "PR open and green; no external feedback yet" and tells the user to run it under `/loop` (or to run `/code-review ultra {pr_number}`) to continue watching.
+
+## Project learnings baked in (PayUp)
+
+- **No Python** in this environment — if any sub-skill tells you to run a `.py` resolver, resolve its customization manually instead (read base→team→user TOML and merge); don't block on Python.
+- **"Tested" = `npm run lint` + `npm run build` clean.** No unit-test framework is installed and none should be added (dependency-light). CI runs exactly these two.
+- **Story status flow:** `backlog → ready-for-dev → in-progress → review → done`. The `baseline_commit` frontmatter (added by `dev-story`) defines the review diff range.
+- **`gh` is available and is the required tool** for all GitHub operations on this repo.
+- **Benign noise to ignore:** Git's `LF will be replaced by CRLF` warnings, and the CI annotation that `actions/checkout@v4`/`setup-node@v4` use the runner's deprecated Node 20 runtime (unrelated to our app's `node-version`).
+- **`_bmad-output/` is committed** (tracked artifacts); `.claude/`, `.agents/`, `_bmad/`, `node_modules/`, `.next/`, and `.env*.local` are gitignored.
