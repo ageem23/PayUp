@@ -15,7 +15,10 @@ create table if not exists public.allowed_users (
   constraint allowed_users_created_by_fkey foreign key (created_by) references auth.users (id)
 );
 
--- High-performance lookup index for auth-time email matching
+-- Explicit named lookup index for auth-time email matching (Story 2.1 AC#3).
+-- Note: the allowed_users_email_key UNIQUE constraint above already creates a
+-- unique btree index on (email), so this index is functionally redundant for
+-- lookups; it is kept to satisfy the AC's explicit naming requirement.
 create index if not exists idx_allowed_users_email
   on public.allowed_users using btree (email);
 
