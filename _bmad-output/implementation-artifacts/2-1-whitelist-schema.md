@@ -4,7 +4,7 @@ baseline_commit: 023bdc23749c646984096f6bfc03aa1eba293b26
 
 # Story 2.1: Database Whitelist Schema Enlistment, Constraints & Indexing
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -128,3 +128,4 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-ship-story pipeline
 | Date | Version | Description | Author |
 |---|---|---|---|
 | 2026-06-18 | 1.1.0 | Added idempotent `allowed_users` migration (table + unique email + btree index + updated_at trigger). Lint/build clean. Status → review. | Amelia (Dev) |
+| 2026-06-18 | 1.2.0 | Review complete: local review (1 finding — redundant index, kept per AC#3 + documented) and CodeRabbit (Free plan: walkthrough only, no actionable findings). CI green on PR #3. Status → done (ready-to-merge). | Amelia (Dev) |
