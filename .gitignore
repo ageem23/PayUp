@@ -4,6 +4,7 @@
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/bmad-ship-story/
+!.claude/skills/bmad-implement-epic/
 .agents/
 _bmad/
 
