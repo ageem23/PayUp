@@ -94,7 +94,11 @@ This is the phase `/loop` re-enters: keep cycling implement→push→re-review u
 - `gh pr view {pr_number} --json reviews` → take the **last** review by `coderabbitai`. CodeRabbit puts its findings in the **review body** as `Actionable comments posted: N`, with the per-finding detail inside the `🤖 Prompt for all review comments` block (file + line + what to change). It also posts inline threads: `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments --paginate` (filter `user.login=="coderabbitai"`).
 - Also check the review's commit range (`…between <base> and <sha>`) — only trust a review whose `<sha>` matches the **current PR head**. A review for an older head is stale; wait for the re-review of your latest push.
 
-**8b. Detect convergence (terminal signal).** CodeRabbit, when it finds nothing on a push, often posts **no new review at all** (no explicit approval). So "clean" = after your latest push, either the newest CodeRabbit review for the current head says `Actionable comments posted: 0`, **or** no new CodeRabbit review/inline thread has appeared for the current head within a reasonable window (a tick or two) — AND CI is green. When clean → go to Step 9.
+**8b. Detect convergence (terminal signal).** CodeRabbit, when it finds nothing on a push, often posts **no new review at all** (no explicit approval). So "clean" = AND CI is green AND one of:
+- the newest CodeRabbit review **whose reviewed head SHA matches the current PR head** says `Actionable comments posted: 0`; or
+- **at least one full wake cadence has elapsed since your push with still no CodeRabbit review for the current head** — use the concrete cadences from "Driving with /loop" as the timeout (≈270s after a re-review push; ≈1200–1800s for a first review), not a vague "wait a bit". Until that timeout passes with no review, treat it as "review still pending", **not** converged — this avoids mistaking a slow/rate-limited review for a clean result.
+
+When clean → go to Step 9.
 
 **8c. Triage findings (don't apply blindly).** For each actionable finding, verify it against the current code (CodeRabbit's own prompt says "fix only still-valid issues, skip the rest with a brief reason"):
 - **Fix** real correctness/security/accuracy issues with minimal changes. (In practice CodeRabbit Pro catches genuine bugs — e.g. fail-open auth paths — that a single local pass misses; take security findings seriously.)
