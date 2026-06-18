@@ -1,0 +1,117 @@
+# generated: 2026-06-17
+# last_updated: 2026-06-17
+# project: PayUp
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: {project-root}/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-06-17
+last_updated: 2026-06-18
+project: PayUp
+project_key: NOKEY
+tracking_system: file-system
+story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+development_status:
+  # Epic 1: System Scaffolding, Core Infrastructure & CI/CD Verification
+  epic-1: in-progress
+  1-1-boilerplate: done
+  1-2-canary: backlog
+  1-3-supabase: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Whitelist Gatekeeping & Authentication Layer
+  epic-2: backlog
+  2-1-whitelist-schema: backlog
+  2-2-whitelist-enforcement: backlog
+  2-3-auth-ui: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Trip Management & Participant Schema Seeding
+  epic-3: backlog
+  3-1-trip-creation: backlog
+  3-2-dashboard-hub: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Receipt Image Storage Pipeline & Ingestion Processing
+  epic-4: backlog
+  4-1-storage-dropzone: backlog
+  4-2-receipt-staging: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Ingested Line-Item Matrix Rendering
+  epic-5: backlog
+  5-1-matrix-ui: backlog
+  5-2-mock-ocr-pipeline: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: JSONB Dynamic Assignment Mutations
+  epic-6: backlog
+  6-1-checkbox-grid: backlog
+  6-2-jsonb-patch: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Precision Algorithmic Multipliers (Tax & Tip Metrics)
+  epic-7: backlog
+  7-1-fee-inputs: backlog
+  7-2-proportional-math: backlog
+  epic-7-retrospective: optional
+
+  # Epic 8: Settle-Up Balancing Ledger Optimization Engine
+  epic-8: backlog
+  8-1-ledger-compiler: backlog
+  8-2-graph-optimization: backlog
+  epic-8-retrospective: optional
+
+  # Epic 9: Profiles, Preferences & Local Workspace Customization
+  epic-9: backlog
+  9-1-dark-mode: backlog
+  9-2-color-profiles: backlog
+  epic-9-retrospective: optional
+
+  # Epic 10: Activity Auditing Timeline Logging
+  epic-10: backlog
+  10-1-activity-log: backlog
+  10-2-flash-highlights: backlog
+  epic-10-retrospective: optional
+
+  # Epic 11: Magic Link Invitations
+  epic-11: backlog
+  11-1-generate-manage-invite-links: backlog
+  11-2-redeem-magic-invite-link: backlog
+  epic-11-retrospective: optional
+
+  # Epic 12: Real-Time Collaboration
+  epic-12: backlog
+  12-1-enable-backend-realtime: backlog
+  12-2-implement-realtime-ui: backlog
+  epic-12-retrospective: optional
