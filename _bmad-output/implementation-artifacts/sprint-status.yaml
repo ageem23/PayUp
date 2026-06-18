@@ -65,7 +65,7 @@ development_status:
   # Epic 4: Receipt Image Storage Pipeline & Ingestion Processing
   epic-4: in-progress
   4-1-storage-dropzone: done
-  4-2-receipt-staging: backlog
+  4-2-receipt-staging: done
   epic-4-retrospective: optional
 
   # Epic 5: Ingested Line-Item Matrix Rendering
