@@ -50,16 +50,16 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Whitelist Gatekeeping & Authentication Layer
-  epic-2: in-progress
+  epic-2: done
   2-1-whitelist-schema: done
   2-2-whitelist-enforcement: done
   2-3-auth-ui: done
   epic-2-retrospective: optional
 
   # Epic 3: Trip Management & Participant Schema Seeding
-  epic-3: backlog
-  3-1-trip-creation: backlog
-  3-2-dashboard-hub: backlog
+  epic-3: in-progress
+  3-1-trip-creation: done
+  3-2-dashboard-hub: done
   epic-3-retrospective: optional
 
   # Epic 4: Receipt Image Storage Pipeline & Ingestion Processing
