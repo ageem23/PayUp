@@ -33,19 +33,25 @@ export default function DashboardPage() {
   const loadTrips = useCallback(async (userId: string) => {
     setLoadingTrips(true);
     setError(null);
-    const { data, error: fetchError } = await supabase
-      .from("trips")
-      .select("id,name,created_at,is_settled")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("trips")
+        .select("id,name,created_at,is_settled")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
 
-    if (fetchError) {
+      if (fetchError) {
+        setError("Could not load your trips. Please try again.");
+        setTrips([]);
+      } else {
+        setTrips((data ?? []) as Trip[]);
+      }
+    } catch {
       setError("Could not load your trips. Please try again.");
       setTrips([]);
-    } else {
-      setTrips((data ?? []) as Trip[]);
+    } finally {
+      setLoadingTrips(false);
     }
-    setLoadingTrips(false);
   }, []);
 
   useEffect(() => {

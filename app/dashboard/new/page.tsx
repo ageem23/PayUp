@@ -49,23 +49,35 @@ export default function NewTripPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) return;
+
+    const name = tripName.trim();
+    if (!name) {
+      setError("Please enter a trip name.");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
-    const { data, error: insertError } = await supabase
-      .from("trips")
-      .insert([{ name: tripName.trim(), participants, user_id: user.id }])
-      .select()
-      .single();
+    try {
+      const { data, error: insertError } = await supabase
+        .from("trips")
+        .insert([{ name, participants, user_id: user.id }])
+        .select()
+        .single();
 
-    if (insertError || !data) {
-      setError(
-        insertError?.message ?? "Could not create the trip. Please try again.",
-      );
+      if (insertError || !data) {
+        setError(
+          insertError?.message ?? "Could not create the trip. Please try again.",
+        );
+        return;
+      }
+      router.push(`/trips/${data.id}`);
+    } catch {
+      setError("Could not create the trip. Please try again.");
+    } finally {
       setSubmitting(false);
-      return;
     }
-    router.push(`/trips/${data.id}`);
   };
 
   if (loading || !user) {

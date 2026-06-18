@@ -83,3 +83,4 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 | Date | Version | Description | Author |
 |---|---|---|---|
 | 2026-06-18 | 1.1.0 | Dashboard hub at `/dashboard` (user-scoped trip grid, settled chip, formatted dates, empty state, create button). Resolves the 2.3 post-login 404. Lint/build clean; local review clean. Merged into `epic-3`. | Amelia (Dev) |
+| 2026-06-18 | 1.2.0 | CodeRabbit review (Epic 3 PR #6): wrapped `loadTrips` in try/catch/finally so the loading state always resets. Lint/build clean. | Amelia (Dev) |

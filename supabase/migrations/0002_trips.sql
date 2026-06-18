@@ -24,6 +24,28 @@ create table if not exists public.trips (
 create index if not exists idx_trips_user_id
   on public.trips using btree (user_id);
 
--- NOTE: No RLS policy here — the architecture defines RLS only on `receipts`,
--- and Epic 3 enforces trip ownership at the application query layer
--- (user_id = auth.uid()). Tightening `trips` with RLS is a future security task.
+-- Row Level Security (NFR2 tenant isolation): a trip is owned by its creator.
+-- Enforced at the DB layer so the app's user_id filter can't be bypassed via
+-- the anon key. Mirrors the ownership model used for `receipts`.
+alter table public.trips enable row level security;
+
+drop policy if exists "Owners can read their trips" on public.trips;
+create policy "Owners can read their trips" on public.trips
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "Owners can insert their trips" on public.trips;
+create policy "Owners can insert their trips" on public.trips
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Owners can update their trips" on public.trips;
+create policy "Owners can update their trips" on public.trips
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "Owners can delete their trips" on public.trips;
+create policy "Owners can delete their trips" on public.trips
+  for delete using (auth.uid() = user_id);
+
+-- NOTE: `user_id` is left nullable to match the architecture schema; the INSERT
+-- policy above (auth.uid() = user_id) already prevents null/forged owners on
+-- client inserts. Public/shared-trip visibility (is_public, invite_token) is
+-- added with its own policies in Epic 11.

@@ -77,7 +77,7 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 
 - **AC#1/#2:** `/dashboard/new` form with Trip Name + a participant sub-input (Enter or "Add" appends; dedupe + trim; removable `×` chips; empty-state text).
 - **AC#3/#4/#5:** submit inserts `{ name, participants, user_id: user.id }` into `public.trips` via the client; `participants` is a flat `string[]` → `jsonb`; `user_id` stamped from `useAuth()`. On success → `/trips/${id}`.
-- **Migration:** `supabase/migrations/0002_trips.sql` (architecture DDL, idempotent, `idx_trips_user_id`). No RLS (matches architecture; app-level ownership filter per Epic 3) — flagged as a future hardening task. **Apply in Supabase at deploy.**
+- **Migration:** `supabase/migrations/0002_trips.sql` (architecture DDL, idempotent, `idx_trips_user_id`). **Owner-scoped RLS added** (enable + select/insert/update/delete policies on `auth.uid() = user_id`) per NFR2 + CodeRabbit review — defense-in-depth beyond the app-level filter. `user_id` left nullable per architecture (the INSERT policy prevents null/forged owners). **Apply in Supabase at deploy.**
 - **Auth guard:** redirects to `/` if unauthenticated; renders a loading state until `useAuth()` resolves.
 - Strict ESLint clean (no `any`, no unused). Local review found no issues.
 - **Forward gap:** `/trips/[id]` (success redirect) is built in Epic 4+ — 404 until then.
@@ -93,3 +93,4 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 | Date | Version | Description | Author |
 |---|---|---|---|
 | 2026-06-18 | 1.1.0 | Trip creation form at `/dashboard/new` (dynamic participant chips, JSONB serialization, user_id stamping) + `trips` table migration. Lint/build clean; local review clean. Merged into `epic-3`. | Amelia (Dev) |
+| 2026-06-18 | 1.2.0 | CodeRabbit review (Epic 3 PR #6): added owner-scoped RLS to the `trips` migration (NFR2); wrapped trip-create submit in try/catch/finally; guarded whitespace-only trip names. Skipped markdown nits + user_id NOT NULL (with reasons). Lint/build clean. | Amelia (Dev) |
