@@ -7,7 +7,7 @@ create extension if not exists "uuid-ossp" with schema extensions;
 
 create table if not exists public.receipts (
   id uuid not null default extensions.uuid_generate_v4(),
-  trip_id uuid null,
+  trip_id uuid not null,
   name character varying(255) not null,
   amount numeric(10, 2) null default 0,
   paid_by character varying(255) not null,

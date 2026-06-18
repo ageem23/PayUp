@@ -86,3 +86,4 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 | Date | Version | Description | Author |
 |---|---|---|---|
 | 2026-06-18 | 1.1.0 | Storage bucket migration + drag-and-drop `ReceiptUploadZone` + minimal Trip Hub at `/trips/[id]` hosting the upload. Lint/build clean; local review clean. Merged into `epic-4`. | Amelia (Dev) |
+| 2026-06-18 | 1.2.0 | CodeRabbit (Epic 4 PR #7): bucket insert now `do update set public = true` (convergent); upload policy adds a server-side filename extension check (`name ~* '\.(jpe?g\|png)$'`) as defense-in-depth. | Amelia (Dev) |

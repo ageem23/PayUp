@@ -84,3 +84,4 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 | Date | Version | Description | Author |
 |---|---|---|---|
 | 2026-06-18 | 1.1.0 | `receipts` table migration (owner RLS) + `ReceiptStagingModal` (name + payer from participants) inserting staged rows; wired into Trip Hub. Lint/build clean; local review clean. Merged into `epic-4`. | Amelia (Dev) |
+| 2026-06-18 | 1.2.0 | CodeRabbit (Epic 4 PR #7): `receipts.trip_id` → `NOT NULL` (a receipt must belong to a trip; tightens the architecture's loose `null`). | Amelia (Dev) |
