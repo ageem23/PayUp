@@ -53,7 +53,7 @@ development_status:
   epic-2: in-progress
   2-1-whitelist-schema: done
   2-2-whitelist-enforcement: done
-  2-3-auth-ui: review
+  2-3-auth-ui: done
   epic-2-retrospective: optional
 
   # Epic 3: Trip Management & Participant Schema Seeding

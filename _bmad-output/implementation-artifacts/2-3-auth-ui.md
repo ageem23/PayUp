@@ -4,7 +4,7 @@ baseline_commit: 195888a17027d21792271b901722565bfacb0924
 
 # Story 2.3: Gateway Login Screen UI & Unauthorized Rejection Layouts
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -120,3 +120,4 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-ship-story pipeline
 | Date | Version | Description | Author |
 |---|---|---|---|
 | 2026-06-18 | 1.1.0 | Login UI at `/` (login/register, loading state, whitelist→`/unauthorized`, success→`/dashboard`), `/unauthorized` page, wired `AuthProvider`, exported rejection sentinel, added CI build env placeholders. Lint/build clean; `/canary` still un-gated. Status → review. | Amelia (Dev) |
+| 2026-06-18 | 1.2.0 | CodeRabbit (Pro) full review of the app code: 1 finding (vague convergence wording in the ship-story skill doc) — fixed in `29ca173`, acknowledged by CodeRabbit. CI green. Story 2.3 application code reviewed clean → done (ready-to-merge). Completes Epic 2. | Amelia (Dev) |
