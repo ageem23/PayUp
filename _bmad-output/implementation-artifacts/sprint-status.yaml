@@ -71,7 +71,7 @@ development_status:
   # Epic 5: Ingested Line-Item Matrix Rendering
   epic-5: in-progress
   5-1-matrix-ui: done
-  5-2-mock-ocr-pipeline: backlog
+  5-2-mock-ocr-pipeline: done
   epic-5-retrospective: optional
 
   # Epic 6: JSONB Dynamic Assignment Mutations

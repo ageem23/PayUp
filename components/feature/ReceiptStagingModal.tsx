@@ -8,7 +8,7 @@ type Props = {
   participants: string[];
   imageUrl: string;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (receiptId: string) => void;
 };
 
 export function ReceiptStagingModal({
@@ -38,22 +38,26 @@ export function ReceiptStagingModal({
     setSubmitting(true);
     setError(null);
     try {
-      const { error: insertError } = await supabase.from("receipts").insert([
-        {
-          trip_id: tripId,
-          name: trimmed,
-          amount: 0.0,
-          paid_by: paidBy,
-          image_url: imageUrl,
-          split_among: [],
-        },
-      ]);
+      const { data, error: insertError } = await supabase
+        .from("receipts")
+        .insert([
+          {
+            trip_id: tripId,
+            name: trimmed,
+            amount: 0.0,
+            paid_by: paidBy,
+            image_url: imageUrl,
+            split_among: [],
+          },
+        ])
+        .select("id")
+        .single();
 
-      if (insertError) {
-        setError(insertError.message);
+      if (insertError || !data) {
+        setError(insertError?.message ?? "Could not save the receipt.");
         return;
       }
-      onCreated();
+      onCreated(data.id as string);
     } catch {
       setError("Could not save the receipt. Please try again.");
     } finally {
