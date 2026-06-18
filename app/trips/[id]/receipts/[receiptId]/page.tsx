@@ -9,14 +9,10 @@ import {
   MatrixStateWrapper,
   type LineItem,
 } from "@/components/feature/MatrixStateWrapper";
-
-// processed_data is freeform jsonb — guard against malformed/non-number prices
-// so a bad row can't crash the render with toFixed().
-function formatPrice(price: unknown): string {
-  return typeof price === "number" && Number.isFinite(price)
-    ? `$${price.toFixed(2)}`
-    : "—";
-}
+import {
+  ReceiptMatrix,
+  type SplitAllocation,
+} from "@/components/feature/ReceiptMatrix";
 
 type Trip = { id: string; name: string; participants: string[] | null };
 
@@ -25,6 +21,7 @@ type Receipt = {
   name: string;
   image_url: string | null;
   processed_data: LineItem[] | null;
+  split_among: SplitAllocation[] | null;
 };
 
 export default function ReceiptMatrixPage() {
@@ -53,7 +50,7 @@ export default function ReceiptMatrixPage() {
             .maybeSingle(),
           supabase
             .from("receipts")
-            .select("id,name,image_url,processed_data")
+            .select("id,name,image_url,processed_data,split_among")
             .eq("id", receiptId)
             .eq("trip_id", tripId)
             .maybeSingle(),
@@ -140,51 +137,11 @@ export default function ReceiptMatrixPage() {
             initialProcessedData={receipt.processed_data}
           >
             {(items) => (
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-neutral-300">
-                    <th className="px-3 py-2 text-left font-semibold">Item</th>
-                    <th className="px-3 py-2 text-right font-semibold">Cost</th>
-                    {participants.map((person) => (
-                      <th
-                        key={person}
-                        className="px-3 py-2 text-center font-semibold"
-                      >
-                        {person}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={2 + participants.length}
-                        className="px-3 py-4 text-center text-sm text-neutral-500"
-                      >
-                        No items yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    items.map((item) => (
-                      <tr key={item.id} className="border-b border-neutral-200">
-                        <td className="px-3 py-2">{item.name}</td>
-                        <td className="px-3 py-2 text-right">
-                          {formatPrice(item.price)}
-                        </td>
-                        {participants.map((person) => (
-                          <td
-                            key={person}
-                            className="px-3 py-2 text-center text-neutral-300"
-                          >
-                            —
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+              <ReceiptMatrix
+                items={items}
+                participants={participants}
+                initialSplitAmong={receipt.split_among}
+              />
             )}
           </MatrixStateWrapper>
         </div>
