@@ -83,3 +83,4 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 | Date | Version | Description | Author |
 |---|---|---|---|
 | 2026-06-18 | 1.1.0 | `MatrixStateWrapper` mock-OCR hydration (skeleton → ~2s mock → `processed_data` update → matrix) + staging→matrix navigation. Explicitly a mock (FR2 unbuilt). Lint/build clean; local review clean. Merged into `epic-5`. | Amelia (Dev) |
+| 2026-06-18 | 1.2.0 | CodeRabbit (Epic 5 PR #8): the mock `update` now `.select("id")`s and verifies a row was affected before `setItems` (Supabase returns `error: null` on a 0-row update under RLS/stale id). | Amelia (Dev) |

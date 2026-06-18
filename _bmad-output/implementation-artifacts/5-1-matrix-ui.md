@@ -82,3 +82,4 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 | Date | Version | Description | Author |
 |---|---|---|---|
 | 2026-06-18 | 1.1.0 | Receipt matrix page at `/trips/[id]/receipts/[receiptId]` — dual-viewport (image + table), participant columns, rows from `processed_data`. Lint/build clean; local review clean. Merged into `epic-5`. | Amelia (Dev) |
+| 2026-06-18 | 1.2.0 | CodeRabbit (Epic 5 PR #8): added a safe `formatPrice` guard (malformed jsonb price can't crash `toFixed`) and a "No items yet" empty-table fallback row. | Amelia (Dev) |

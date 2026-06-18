@@ -43,15 +43,18 @@ export function MatrixStateWrapper({
         ...line,
       }));
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("receipts")
         .update({ processed_data: mockLines })
-        .eq("id", receiptId);
+        .eq("id", receiptId)
+        .select("id");
 
       if (!active) return;
-      // Refresh the view from the known result (no extra round-trip). On error
-      // we still stop the spinner so the user isn't stuck on a skeleton.
-      if (!error) {
+      // Only refresh the view if the write actually persisted. Supabase returns
+      // error: null even when zero rows match (e.g. RLS denial / stale id), so
+      // confirm a row was updated before trusting the result. Either way, stop
+      // the spinner so the user isn't stuck on a skeleton.
+      if (!error && data && data.length > 0) {
         setItems(mockLines);
       }
       setProcessing(false);

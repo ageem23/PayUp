@@ -10,6 +10,14 @@ import {
   type LineItem,
 } from "@/components/feature/MatrixStateWrapper";
 
+// processed_data is freeform jsonb — guard against malformed/non-number prices
+// so a bad row can't crash the render with toFixed().
+function formatPrice(price: unknown): string {
+  return typeof price === "number" && Number.isFinite(price)
+    ? `$${price.toFixed(2)}`
+    : "—";
+}
+
 type Trip = { id: string; name: string; participants: string[] | null };
 
 type Receipt = {
@@ -148,22 +156,33 @@ export default function ReceiptMatrixPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id} className="border-b border-neutral-200">
-                      <td className="px-3 py-2">{item.name}</td>
-                      <td className="px-3 py-2 text-right">
-                        ${item.price.toFixed(2)}
+                  {items.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={2 + participants.length}
+                        className="px-3 py-4 text-center text-sm text-neutral-500"
+                      >
+                        No items yet.
                       </td>
-                      {participants.map((person) => (
-                        <td
-                          key={person}
-                          className="px-3 py-2 text-center text-neutral-300"
-                        >
-                          —
-                        </td>
-                      ))}
                     </tr>
-                  ))}
+                  ) : (
+                    items.map((item) => (
+                      <tr key={item.id} className="border-b border-neutral-200">
+                        <td className="px-3 py-2">{item.name}</td>
+                        <td className="px-3 py-2 text-right">
+                          {formatPrice(item.price)}
+                        </td>
+                        {participants.map((person) => (
+                          <td
+                            key={person}
+                            className="px-3 py-2 text-center text-neutral-300"
+                          >
+                            —
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             )}
