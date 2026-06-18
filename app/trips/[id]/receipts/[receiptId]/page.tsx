@@ -134,6 +134,7 @@ export default function ReceiptMatrixPage() {
         <div className="overflow-x-auto">
           <MatrixStateWrapper
             receiptId={receipt.id}
+            imageUrl={receipt.image_url}
             initialProcessedData={receipt.processed_data}
           >
             {(items) => (

@@ -5,22 +5,16 @@ import { supabase } from "@/utils/supabase/client";
 
 export type LineItem = { id: string; name: string; price: number };
 
-// MOCK ingestion: stands in for real OCR (PRD FR2 is not yet built). Seeds a
-// fixed set of line items after a simulated ~2s "scan".
-const MOCK_LINE_ITEMS: Omit<LineItem, "id">[] = [
-  { name: "Woodfired Margherita Pizza", price: 19.0 },
-  { name: "House Red Wine Carafe", price: 24.0 },
-  { name: "Sparkling Water", price: 4.5 },
-];
-
 type Props = {
   receiptId: string;
+  imageUrl: string | null;
   initialProcessedData: LineItem[] | null;
   children: (items: LineItem[]) => ReactNode;
 };
 
 export function MatrixStateWrapper({
   receiptId,
+  imageUrl,
   initialProcessedData,
   children,
 }: Props) {
@@ -32,39 +26,52 @@ export function MatrixStateWrapper({
   const startedRef = useRef(false);
 
   useEffect(() => {
-    // Only run the mock once, and only when the receipt has no items yet.
+    // Run OCR once, and only when the receipt has no items yet.
     if (items.length > 0 || startedRef.current) return;
     startedRef.current = true;
 
-    let active = true;
-    const timer = setTimeout(async () => {
-      const mockLines: LineItem[] = MOCK_LINE_ITEMS.map((line) => ({
-        id: crypto.randomUUID(),
-        ...line,
-      }));
-
-      const { data, error } = await supabase
-        .from("receipts")
-        .update({ processed_data: mockLines })
-        .eq("id", receiptId)
-        .select("id");
-
-      if (!active) return;
-      // Only refresh the view if the write actually persisted. Supabase returns
-      // error: null even when zero rows match (e.g. RLS denial / stale id), so
-      // confirm a row was updated before trusting the result. Either way, stop
-      // the spinner so the user isn't stuck on a skeleton.
-      if (!error && data && data.length > 0) {
-        setItems(mockLines);
-      }
+    // Nothing to scan without an image.
+    if (!imageUrl) {
       setProcessing(false);
-    }, 2000);
+      return;
+    }
+
+    let active = true;
+    const run = async () => {
+      try {
+        const res = await fetch("/api/ocr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ receiptId, imageUrl }),
+        });
+        if (!res.ok) return;
+        const payload = (await res.json()) as { items?: LineItem[] };
+        const extracted = Array.isArray(payload.items) ? payload.items : [];
+        if (extracted.length === 0) return;
+
+        // Persist under the user's RLS session (client-side).
+        const { data, error } = await supabase
+          .from("receipts")
+          .update({ processed_data: extracted })
+          .eq("id", receiptId)
+          .select("id");
+        if (!active) return;
+        if (!error && data && data.length > 0) {
+          setItems(extracted);
+        }
+      } catch {
+        // Network/parse failure — fall through to stop the spinner so the user
+        // isn't stuck on a skeleton; the matrix renders empty.
+      } finally {
+        if (active) setProcessing(false);
+      }
+    };
+    void run();
 
     return () => {
       active = false;
-      clearTimeout(timer);
     };
-  }, [items.length, receiptId]);
+  }, [items.length, receiptId, imageUrl]);
 
   if (processing) {
     return (
