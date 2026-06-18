@@ -4,7 +4,7 @@ baseline_commit: 5a9260d262bb115cf43eca64fd1609cf1d78328f
 
 # Story 1.2: CI/CD Pipeline Automation & Automated System Smoke Routing (`/canary`)
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -30,7 +30,7 @@ so that codebase breaks are flagged before reaching cloud hosting and system ava
   - [x] Define an immutable status object (`{ status: "operational", version: "1.0.0" }`) and render it as a clean text/JSON block (e.g. inside a `<pre>` or `<main>`). Keep it a plain Server Component — do NOT mark it `"use client"`, and do NOT call dynamic APIs (`cookies()`, `headers()`, `searchParams`) so Next prerenders it as static (`○` in build output).
   - [x] Keep the route pure and un-gated: no auth context, no `redirect()`, no middleware. It exists to test raw web-server availability. [Source: docs/docs/prd/epic-1/story_01_2_canary.md#Dev Notes]
 - [x] **Verify locally** (AC: #2, #3) — Run `npm run lint` (must exit 0) and `npm run build` (must compile clean and list `/canary` as a route). Optionally `npm run start` and curl `/canary` to confirm `200` + payload.
-- [ ] **Verify CI on GitHub** (AC: #1) — Commit and push the workflow on the working branch, then confirm the Actions run succeeds **before** merging. Use the GitHub CLI: `gh run list --branch <branch>` then `gh run watch <run-id>` (or `gh run view <run-id> --log-failed` on failure). [Source: project memory — use `gh` CLI for all GitHub operations]
+- [x] **Verify CI on GitHub** (AC: #1) — Commit and push the workflow on the working branch, then confirm the Actions run succeeds **before** merging. Use the GitHub CLI: `gh run list --branch <branch>` then `gh run watch <run-id>` (or `gh run view <run-id> --log-failed` on failure). [Source: project memory — use `gh` CLI for all GitHub operations]
 
 ## Dev Notes
 
@@ -80,10 +80,36 @@ The scaffold is already in place and committed. Build on it; do not re-scaffold.
 
 ### Agent Model Used
 
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-dev-story workflow
+
 ### Debug Log References
+
+- `npm run lint` → `✔ No ESLint warnings or errors`.
+- `npm run build` → `✓ Compiled successfully`; route table lists `○ /canary` (Static).
+- `npm run start` + `curl /canary` → `200`; prerendered HTML contains `status: operational` / `version: 1.0.0`.
+- Pushed to `epic-1` (`f92aee9`) → GitHub Actions run `27733524611`: `gh run watch --exit-status` → exit 0. Steps green: checkout → setup-node → `npm ci` → lint → build (59s).
 
 ### Completion Notes List
 
-Ultimate context engine analysis completed - comprehensive developer guide created.
+- **AC#1 (CI):** `.github/workflows/ci.yml` runs `npm ci` → `npm run lint` → `npm run build` on `push` (all branches) and `pull_request` to `main`, with `actions/setup-node@v4` npm cache keyed on `package-lock.json`. Verified green on GitHub (run `27733524611`) for the pushed commit.
+  - Targeted `main` (the actual default branch), not the stale "master" in the source story.
+  - Used a `push` trigger (not PR-only) so the feature-branch push verifies CI pre-merge, satisfying the AC's "verify before merging".
+  - Non-blocking GitHub annotation: `checkout@v4`/`setup-node@v4` run on the runner's deprecated Node 20 action runtime (unrelated to our app's `node-version: 20`); v4 is current, no change needed.
+- **AC#2 (200 OK):** `/canary` returns `200` — confirmed via `curl`. Route is un-gated (no auth/middleware/redirect) and inherits the open root layout.
+- **AC#3 (payload):** `/canary` renders `{ "status": "operational", "version": "1.0.0" }` in a `<pre>` block. `version` is a hardcoded immutable constant (`as const`), deliberately NOT read from `package.json` (`0.1.0`), per the AC's "immutable confirmation string".
+- **Static guarantee:** plain Server Component with no dynamic APIs → build marks `/canary` as `○ (Static)`. No `dynamic` export added.
+- **Strict-lint compliance (carried from 1.1):** no `any`, no unused vars — `status` typed via `as const`. Lint clean.
+- **No test framework added** (dependency-light, per Story 1.1 convention). Verification is lint + build + runtime 200/payload + green CI.
 
 ### File List
+
+**Added:**
+- `.github/workflows/ci.yml`
+- `app/canary/page.tsx`
+
+## Change Log
+
+| Date | Version | Description | Author |
+|---|---|---|---|
+| 2026-06-18 | 1.1.0 | Added GitHub Actions CI (lint+build) and static `/canary` health route. Lint/build clean; CI verified green (run 27733524611). Status → review. | Amelia (Dev) |
+| 2026-06-18 | 1.2.0 | Code review: no correctness bugs. Applied 1 low-severity efficiency fix — added `concurrency` group to `ci.yml` to collapse push/PR double-runs and cancel superseded runs. Re-verified CI green. Status → done. | Amelia (Dev) |
