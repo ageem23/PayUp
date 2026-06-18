@@ -69,15 +69,16 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: Ingested Line-Item Matrix Rendering
-  epic-5: in-progress
+  epic-5: done
   5-1-matrix-ui: done
   5-2-mock-ocr-pipeline: done
   epic-5-retrospective: optional
 
   # Epic 6: JSONB Dynamic Assignment Mutations
-  epic-6: backlog
+  epic-6: in-progress
   6-1-checkbox-grid: backlog
   6-2-jsonb-patch: backlog
+  6-3-gemini-ocr: backlog
   epic-6-retrospective: optional
 
   # Epic 7: Precision Algorithmic Multipliers (Tax & Tip Metrics)
