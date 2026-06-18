@@ -138,6 +138,7 @@ export default function ReceiptMatrixPage() {
           >
             {(items) => (
               <ReceiptMatrix
+                receiptId={receipt.id}
                 items={items}
                 participants={participants}
                 initialSplitAmong={receipt.split_among}
