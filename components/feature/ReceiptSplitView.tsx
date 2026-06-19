@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LineItem } from "@/components/feature/MatrixStateWrapper";
 import {
   ReceiptMatrix,
@@ -9,10 +9,36 @@ import {
 import { ReceiptSummarySidebar } from "@/components/feature/ReceiptSummarySidebar";
 import type { SaveState } from "@/components/feature/SyncStatusBar";
 import { patchReceiptFees } from "@/utils/db/receiptFees";
+import { patchReceiptSplits } from "@/utils/db/matrixPatch";
+import { calculateProportionalSplit } from "@/utils/math/billCalculations";
 
 // Debounce window for persisting fee edits — long enough to coalesce a burst of
 // keystrokes into one write, short enough to feel instant.
 const FEE_SAVE_DEBOUNCE_MS = 600;
+
+// Pure: returns a new split_among array with only the matching item_id node
+// changed; every other line is preserved (split_among is one JSONB column).
+function applyToggle(
+  splits: SplitAllocation[],
+  itemId: string,
+  participant: string,
+  checked: boolean,
+): SplitAllocation[] {
+  const existing = splits.find((split) => split.item_id === itemId);
+  if (!existing) {
+    return checked
+      ? [...splits, { item_id: itemId, assigned_participants: [participant] }]
+      : splits;
+  }
+  const assigned = checked
+    ? Array.from(new Set([...existing.assigned_participants, participant]))
+    : existing.assigned_participants.filter((p) => p !== participant);
+  return splits.map((split) =>
+    split.item_id === itemId
+      ? { ...split, assigned_participants: assigned }
+      : split,
+  );
+}
 
 type Props = {
   receiptId: string;
@@ -35,56 +61,90 @@ export function ReceiptSplitView({
   const [tip, setTip] = useState<number>(initialTip);
   const [feeSaveState, setFeeSaveState] = useState<SaveState>("idle");
 
-  // Last values we've successfully sent to the DB — guards against saving on
+  const [splits, setSplits] = useState<SplitAllocation[]>(
+    Array.isArray(initialSplitAmong) ? initialSplitAmong : [],
+  );
+  const [splitSaveState, setSplitSaveState] = useState<SaveState>("idle");
+
+  // Last fee values successfully sent to the DB — guards against saving on
   // mount and against redundant writes when a value lands back on its prior one.
-  const savedRef = useRef<{ tax: number; tip: number }>({
+  const savedFeesRef = useRef<{ tax: number; tip: number }>({
     tax: initialTax,
     tip: initialTip,
   });
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Serialize writes so a slower earlier save can't land after a newer one.
-  const saveChain = useRef<Promise<unknown>>(Promise.resolve());
-  const saveSeq = useRef(0);
+  const feeChain = useRef<Promise<unknown>>(Promise.resolve());
+  const feeSeq = useRef(0);
+  const splitChain = useRef<Promise<unknown>>(Promise.resolve());
+  const splitSeq = useRef(0);
 
-  const scheduleSave = useCallback(
+  const scheduleFeeSave = useCallback(
     (nextTax: number, nextTip: number) => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        if (nextTax === savedRef.current.tax && nextTip === savedRef.current.tip)
+      if (feeTimerRef.current) clearTimeout(feeTimerRef.current);
+      feeTimerRef.current = setTimeout(() => {
+        if (
+          nextTax === savedFeesRef.current.tax &&
+          nextTip === savedFeesRef.current.tip
+        )
           return;
-        const seq = ++saveSeq.current;
+        const seq = ++feeSeq.current;
         setFeeSaveState("saving");
-        saveChain.current = saveChain.current
+        feeChain.current = feeChain.current
           .catch(() => undefined)
           .then(() => patchReceiptFees(receiptId, { tax: nextTax, tip: nextTip }))
           .then(() => {
-            savedRef.current = { tax: nextTax, tip: nextTip };
-            if (saveSeq.current === seq) setFeeSaveState("saved");
+            savedFeesRef.current = { tax: nextTax, tip: nextTip };
+            if (feeSeq.current === seq) setFeeSaveState("saved");
           })
           .catch(() => {
-            if (saveSeq.current === seq) setFeeSaveState("error");
+            if (feeSeq.current === seq) setFeeSaveState("error");
           });
       }, FEE_SAVE_DEBOUNCE_MS);
     },
     [receiptId],
   );
 
-  // Flush any pending debounce on unmount so an in-flight edit isn't lost.
+  // Flush any pending fee debounce on unmount so an in-flight edit isn't lost.
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (feeTimerRef.current) clearTimeout(feeTimerRef.current);
     };
   }, []);
 
   const handleTaxChange = (value: number) => {
     setTax(value);
-    scheduleSave(value, tip);
+    scheduleFeeSave(value, tip);
   };
 
   const handleTipChange = (value: number) => {
     setTip(value);
-    scheduleSave(tax, value);
+    scheduleFeeSave(tax, value);
   };
+
+  const handleToggle = (itemId: string, participant: string, checked: boolean) => {
+    const next = applyToggle(splits, itemId, participant, checked);
+    const seq = ++splitSeq.current;
+    setSplits(next);
+    setSplitSaveState("saving");
+    // Auto-save the FULL updated split_among array (preserves every line),
+    // queued after any in-flight save so writes apply in order. Only the newest
+    // save (seq) may set the visible status — stale completions are ignored.
+    splitChain.current = splitChain.current
+      .catch(() => undefined)
+      .then(() => patchReceiptSplits(receiptId, next))
+      .then(() => {
+        if (splitSeq.current === seq) setSplitSaveState("saved");
+      })
+      .catch(() => {
+        if (splitSeq.current === seq) setSplitSaveState("error");
+      });
+  };
+
+  const totals = useMemo(
+    () => calculateProportionalSplit(items, splits, participants, tax, tip),
+    [items, splits, participants, tax, tip],
+  );
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[16rem_1fr]">
@@ -94,12 +154,14 @@ export function ReceiptSplitView({
         onTaxChange={handleTaxChange}
         onTipChange={handleTipChange}
         saveState={feeSaveState}
+        totals={totals}
       />
       <ReceiptMatrix
-        receiptId={receiptId}
         items={items}
         participants={participants}
-        initialSplitAmong={initialSplitAmong}
+        splits={splits}
+        onToggle={handleToggle}
+        saveState={splitSaveState}
       />
     </div>
   );
