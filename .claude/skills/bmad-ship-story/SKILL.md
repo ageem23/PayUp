@@ -1,13 +1,13 @@
 ---
 name: bmad-ship-story
-description: 'Run a single story end-to-end: create it, implement it, open a PR to main, review it (local code-review + watch the PR for external feedback), and iterate implement↔review until the PR is clean and ready-to-merge. Use when the user says "ship a story", "ship the next story", "run the story pipeline", or "ship story <id>". Designed to be driven by /loop for the watch phase.'
+description: 'Run a single story end-to-end: create it, implement it, open a PR to main, review it (BMAD adversarial code review + watch the PR for external feedback), and iterate implement↔review until the PR is clean and ready-to-merge. Use when the user says "ship a story", "ship the next story", "run the story pipeline", or "ship story <id>". Designed to be driven by /loop for the watch phase.'
 ---
 
 # Ship Story Pipeline
 
 **Goal:** Take one story from idea to a green, reviewed, ready-to-merge PR — fully autonomously where possible, incorporating external PR feedback where it exists.
 
-**Your Role:** Delivery driver. You orchestrate the existing BMad skills (`bmad-create-story`, `bmad-dev-story`, `code-review`) plus GitHub, and you own the implement↔review loop until the PR has no open feedback and CI is green. You then STOP — you do not merge.
+**Your Role:** Delivery driver. You orchestrate the existing BMad skills (`bmad-create-story`, `bmad-dev-story`, `bmad-code-review`) plus GitHub, and you own the implement↔review loop until the PR has no open feedback and CI is green. You then STOP — you do not merge.
 
 This skill is a **resumable state machine**. Every run detects the current state from `sprint-status.yaml`, git, and the PR, then advances as far as it can. It is safe to re-run; it never repeats a completed phase. The watch phase (Phase 5) is meant to be driven by `/loop` so external review feedback gets picked up on each tick.
 
@@ -71,14 +71,20 @@ This skill is a **resumable state machine**. Every run detects the current state
 2. If none exists, create one: `gh pr create --base {default_branch} --head {work_branch} --title "{story_id}: {story title}" --body "<summary>"`. Build the body from the story's Story statement + Acceptance Criteria + a short "Verification" line (lint/build/CI). Include `Story: {story_key}`.
 3. Record `pr_number` and `pr_url`. Report the PR URL to the user.
 
-### Step 6 — Local review pass (once per new code state)
+### Step 6 — Adversarial code review pass (once per new code state)
 
 Run this whenever the PR head has code that hasn't yet had a local review (track via the head SHA you last reviewed; on first reach, always run it).
 
+**The default reviewer is the BMAD code review feature — the `bmad-code-review` skill** (adversarial parallel layers: Blind Hunter + Edge Case Hunter + Acceptance Auditor), not the lighter built-in `code-review`. Always run it here.
+
 1. Determine the review range: `baseline_commit..HEAD` from the story frontmatter (falls back to `{default_branch}...HEAD` if absent).
-2. Invoke the **`code-review`** skill scoped to that range with `--comment` so findings post as inline PR comments (audit trail), e.g. `code-review high --comment {pr_number}`. Use effort `high` by default.
-3. For each CONFIRMED/PLAUSIBLE finding: implement the fix (or consciously reject it with a one-line reason in the story Dev Agent Record). Re-run `lint`+`build` to confirm clean.
-4. Commit + push the fixes. Record the new head SHA as "locally reviewed".
+2. Invoke the **`bmad-code-review`** skill. Tell it to review the **branch diff for that range** and pass the `story_file` as the spec so it runs in **`full`** mode — then the Acceptance Auditor checks the diff against the story's acceptance criteria. It triages every finding into patch / defer / dismiss and writes them to the story file's **`### Review Findings`** section. That story-file section IS the audit trail here (it replaces posting inline `code-review --comment` threads on the PR).
+3. Drive its triage to a decision:
+   - **Autonomous (under `/loop`):** at `bmad-code-review`'s "how would you like to handle the patch findings?" checkpoint, choose **Apply every patch** so the loop doesn't stall — it fixes all confirmed patches without per-finding confirmation and leaves `defer` items as action items. If it raises a `decision-needed` finding that genuinely requires a human call, surface it and STOP rather than guessing.
+   - **Interactive (no loop):** let `bmad-code-review` present its triage and walk through patches as designed.
+4. After patches are applied, re-run `npm run lint` + `npm run build` to confirm clean (Step 7 also gates this). Commit + push the fixes. Record the new head SHA as "locally reviewed".
+
+> The built-in `code-review` skill remains available as a lighter manual fallback (e.g. `code-review high --comment {pr_number}` for a quick inline-comment pass), but `bmad-code-review` is the default every run.
 
 ### Step 7 — Verify CI on the PR head
 
