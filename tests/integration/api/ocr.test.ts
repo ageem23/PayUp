@@ -17,6 +17,12 @@ jest.mock("@google/genai", () => ({
   },
 }));
 
+// Mock the Supabase client so the image "download" returns a fake blob.
+const mockDownload = jest.fn();
+jest.mock("@/utils/supabase/client", () => ({
+  supabase: { storage: { from: jest.fn(() => ({ download: mockDownload })) } },
+}));
+
 const SUPABASE_URL = "https://test.supabase.co";
 const VALID_IMAGE = `${SUPABASE_URL}/storage/v1/object/public/receipt-images/x.png`;
 
@@ -28,8 +34,11 @@ function makeRequest(body: unknown): Request {
   });
 }
 
+function fakeBlob() {
+  return { type: "image/png", arrayBuffer: async () => new ArrayBuffer(8) };
+}
+
 describe("POST /api/ocr", () => {
-  const originalFetch = global.fetch;
   const originalKey = process.env.GEMINI_API_KEY;
   const originalSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -37,10 +46,10 @@ describe("POST /api/ocr", () => {
     jest.clearAllMocks();
     process.env.GEMINI_API_KEY = "test-key";
     process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
+    mockDownload.mockResolvedValue({ data: fakeBlob(), error: null });
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
     process.env.GEMINI_API_KEY = originalKey;
     process.env.NEXT_PUBLIC_SUPABASE_URL = originalSupabaseUrl;
   });
@@ -58,6 +67,7 @@ describe("POST /api/ocr", () => {
       makeRequest({ receiptId: "r1", imageUrl: "https://evil.example.com/x.png" }),
     );
     expect(res.status).toBe(400);
+    expect(mockDownload).not.toHaveBeenCalled();
     expect(mockGenerateContent).not.toHaveBeenCalled();
   });
 
@@ -69,10 +79,8 @@ describe("POST /api/ocr", () => {
     expect(res.status).toBe(503);
   });
 
-  it("returns 400 when the image cannot be fetched", async () => {
-    global.fetch = jest
-      .fn()
-      .mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+  it("returns 400 when the image cannot be downloaded", async () => {
+    mockDownload.mockResolvedValueOnce({ data: null, error: new Error("nope") });
     const res = await POST(
       makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
     );
@@ -80,12 +88,6 @@ describe("POST /api/ocr", () => {
   });
 
   it("preserves decimal prices without truncation (numbers and currency strings)", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      headers: { get: () => "image/png" },
-      arrayBuffer: async () => new ArrayBuffer(8),
-    }) as unknown as typeof fetch;
-
     mockGenerateContent.mockResolvedValue({
       text: JSON.stringify([
         { name: "Pizza", price: 19.99 },

@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
+import { supabase } from "@/utils/supabase/client";
 
 type RawLine = { name?: unknown; price?: unknown };
 type LineItem = { id: string; name: string; price: number };
 
-// SSRF guard. Accepts only https URLs whose host is the project's Supabase
-// instance (where receipt-images live), then REBUILDS the URL on that trusted
-// origin so the request host is a server constant, never the attacker-supplied
-// value — only the path/query carries over. This defeats SSRF (file://,
-// internal IPs, alternate hosts) and breaks the taint flow into fetch().
-function toSafeImageUrl(raw: string): URL | null {
+// Validate the image URL is on the project's Supabase storage host and extract
+// the { bucket, key }. The image is then downloaded via the Supabase SDK (not
+// fetch), so no user-controlled value ever reaches an HTTP request sink — this
+// eliminates SSRF (file://, internal IPs, alternate hosts) by construction.
+function toStorageObject(raw: string): { bucket: string; key: string } | null {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) return null;
 
@@ -24,7 +24,18 @@ function toSafeImageUrl(raw: string): URL | null {
   if (candidate.protocol !== "https:") return null;
   if (candidate.host !== allowed.host) return null;
 
-  return new URL(candidate.pathname + candidate.search, allowed.origin);
+  // Public object URLs: /storage/v1/object/public/{bucket}/{key...}
+  const marker = "/storage/v1/object/public/";
+  const at = candidate.pathname.indexOf(marker);
+  if (at === -1) return null;
+  const rest = candidate.pathname.slice(at + marker.length);
+  const slash = rest.indexOf("/");
+  if (slash <= 0) return null;
+
+  const bucket = decodeURIComponent(rest.slice(0, slash));
+  const key = decodeURIComponent(rest.slice(slash + 1));
+  if (!bucket || !key) return null;
+  return { bucket, key };
 }
 
 // Coerce a model-returned price (a number, or a string like "$19.99") into a
@@ -60,8 +71,8 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  const safeImageUrl = toSafeImageUrl(imageUrl);
-  if (!safeImageUrl) {
+  const storageObject = toStorageObject(imageUrl);
+  if (!storageObject) {
     return NextResponse.json(
       { error: "imageUrl must be an https URL on the configured storage host." },
       { status: 400 },
@@ -78,15 +89,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const imageResponse = await fetch(safeImageUrl);
-  if (!imageResponse.ok) {
+  // Download via the Supabase SDK (not a user-controlled fetch → no SSRF sink).
+  const { data: blob, error: downloadError } = await supabase.storage
+    .from(storageObject.bucket)
+    .download(storageObject.key);
+  if (downloadError || !blob) {
     return NextResponse.json(
       { error: "Could not fetch the receipt image." },
       { status: 400 },
     );
   }
-  const mimeType = imageResponse.headers.get("content-type") ?? "image/jpeg";
-  const imageBytes = Buffer.from(await imageResponse.arrayBuffer());
+  const mimeType = blob.type || "image/jpeg";
+  const imageBytes = Buffer.from(await blob.arrayBuffer());
   const base64 = imageBytes.toString("base64");
 
   // Model is env-configurable so it can be changed without a code edit (e.g.
