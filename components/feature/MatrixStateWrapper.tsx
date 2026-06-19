@@ -5,22 +5,16 @@ import { supabase } from "@/utils/supabase/client";
 
 export type LineItem = { id: string; name: string; price: number };
 
-// MOCK ingestion: stands in for real OCR (PRD FR2 is not yet built). Seeds a
-// fixed set of line items after a simulated ~2s "scan".
-const MOCK_LINE_ITEMS: Omit<LineItem, "id">[] = [
-  { name: "Woodfired Margherita Pizza", price: 19.0 },
-  { name: "House Red Wine Carafe", price: 24.0 },
-  { name: "Sparkling Water", price: 4.5 },
-];
-
 type Props = {
   receiptId: string;
+  imageUrl: string | null;
   initialProcessedData: LineItem[] | null;
   children: (items: LineItem[]) => ReactNode;
 };
 
 export function MatrixStateWrapper({
   receiptId,
+  imageUrl,
   initialProcessedData,
   children,
 }: Props) {
@@ -29,42 +23,60 @@ export function MatrixStateWrapper({
     : [];
   const [items, setItems] = useState<LineItem[]>(initialItems);
   const [processing, setProcessing] = useState(initialItems.length === 0);
+  const [ocrError, setOcrError] = useState<string | null>(null);
   const startedRef = useRef(false);
 
   useEffect(() => {
-    // Only run the mock once, and only when the receipt has no items yet.
+    // Run OCR once, and only when the receipt has no items yet.
     if (items.length > 0 || startedRef.current) return;
     startedRef.current = true;
 
-    let active = true;
-    const timer = setTimeout(async () => {
-      const mockLines: LineItem[] = MOCK_LINE_ITEMS.map((line) => ({
-        id: crypto.randomUUID(),
-        ...line,
-      }));
-
-      const { data, error } = await supabase
-        .from("receipts")
-        .update({ processed_data: mockLines })
-        .eq("id", receiptId)
-        .select("id");
-
-      if (!active) return;
-      // Only refresh the view if the write actually persisted. Supabase returns
-      // error: null even when zero rows match (e.g. RLS denial / stale id), so
-      // confirm a row was updated before trusting the result. Either way, stop
-      // the spinner so the user isn't stuck on a skeleton.
-      if (!error && data && data.length > 0) {
-        setItems(mockLines);
-      }
+    // Nothing to scan without an image.
+    if (!imageUrl) {
       setProcessing(false);
-    }, 2000);
+      return;
+    }
 
-    return () => {
-      active = false;
-      clearTimeout(timer);
+    // No `active`/cleanup cancellation flag here on purpose: `startedRef`
+    // already guarantees a single run, and under React StrictMode's
+    // mount→unmount→remount the cancel flag would discard the only in-flight
+    // result (DB updated, UI not). The state setters are stable and safely
+    // no-op if the component has truly unmounted.
+    const run = async () => {
+      setOcrError(null);
+      try {
+        const res = await fetch("/api/ocr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ receiptId, imageUrl }),
+        });
+        if (!res.ok) {
+          setOcrError("Couldn't scan the receipt. Please try again.");
+          return;
+        }
+        const payload = (await res.json()) as { items?: LineItem[] };
+        const extracted = Array.isArray(payload.items) ? payload.items : [];
+        if (extracted.length === 0) return;
+
+        // Persist under the user's RLS session (client-side).
+        const { data, error } = await supabase
+          .from("receipts")
+          .update({ processed_data: extracted })
+          .eq("id", receiptId)
+          .select("id");
+        if (!error && data && data.length > 0) {
+          setItems(extracted);
+        } else {
+          setOcrError("Scanned the receipt but couldn't save the items.");
+        }
+      } catch {
+        setOcrError("Couldn't scan the receipt. Please try again.");
+      } finally {
+        setProcessing(false);
+      }
     };
-  }, [items.length, receiptId]);
+    void run();
+  }, [items.length, receiptId, imageUrl]);
 
   if (processing) {
     return (
@@ -80,5 +92,14 @@ export function MatrixStateWrapper({
     );
   }
 
-  return <>{children(items)}</>;
+  return (
+    <>
+      {ocrError ? (
+        <p role="alert" className="mb-2 text-sm text-red-600">
+          {ocrError}
+        </p>
+      ) : null}
+      {children(items)}
+    </>
+  );
 }

@@ -5,6 +5,10 @@ on:
   pull_request:
     branches: [main]
 
+# Least-privilege token: this workflow only reads the repo to lint/build/test.
+permissions:
+  contents: read
+
 # Collapse the push/pull_request double-run for same-repo PR branches and
 # cancel superseded runs on rapid pushes.
 concurrency:
@@ -39,5 +43,13 @@ jobs:
           # the build/prerender (the runner has no .env.local). createClient()
           # makes no network calls at construction, so these are never used to
           # connect — they only satisfy the module-init check.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+
+      - name: Test
+        run: npm test
+        env:
+          # Tests mock the Supabase client, but provide placeholders so any
+          # un-mocked import doesn't trip the module-init env guard.
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
