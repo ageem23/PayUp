@@ -58,6 +58,8 @@ export function ReceiptMatrix({
   // Serialize autosave writes so a slower earlier save can't land after (and
   // overwrite) a newer one.
   const saveChain = useRef<Promise<unknown>>(Promise.resolve());
+  // Monotonic counter so only the latest queued save may update saveState.
+  const saveSeq = useRef(0);
 
   const isAssigned = (itemId: string, participant: string): boolean =>
     splits.some(
@@ -68,15 +70,22 @@ export function ReceiptMatrix({
 
   const toggle = (itemId: string, participant: string, checked: boolean) => {
     const next = applyToggle(splits, itemId, participant, checked);
+    const seq = ++saveSeq.current;
     setSplits(next);
     setSaveState("saving");
     // Auto-save the FULL updated split_among array (preserves every line),
-    // queued after any in-flight save so writes apply in order.
+    // queued after any in-flight save so writes apply in order. Only the
+    // newest save (seq) may set the visible status — stale completions are
+    // ignored so they can't flash an outdated state.
     saveChain.current = saveChain.current
       .catch(() => undefined)
       .then(() => patchReceiptSplits(receiptId, next))
-      .then(() => setSaveState("saved"))
-      .catch(() => setSaveState("error"));
+      .then(() => {
+        if (saveSeq.current === seq) setSaveState("saved");
+      })
+      .catch(() => {
+        if (saveSeq.current === seq) setSaveState("error");
+      });
   };
 
   if (items.length === 0) {

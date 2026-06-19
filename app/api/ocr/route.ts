@@ -122,7 +122,10 @@ export async function POST(request: Request) {
       },
     });
     responseText = response.text ?? "[]";
-  } catch {
+  } catch (error) {
+    // Surface the real upstream error server-side; the client still gets a
+    // generic message (no stack/internal detail leaked).
+    console.error("[ocr] Gemini generateContent failed:", error);
     return NextResponse.json(
       { error: "Receipt scanning failed. Please try again." },
       { status: 502 },
