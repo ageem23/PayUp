@@ -37,7 +37,11 @@ export function MatrixStateWrapper({
       return;
     }
 
-    let active = true;
+    // No `active`/cleanup cancellation flag here on purpose: `startedRef`
+    // already guarantees a single run, and under React StrictMode's
+    // mount→unmount→remount the cancel flag would discard the only in-flight
+    // result (DB updated, UI not). The state setters are stable and safely
+    // no-op if the component has truly unmounted.
     const run = async () => {
       setOcrError(null);
       try {
@@ -47,7 +51,7 @@ export function MatrixStateWrapper({
           body: JSON.stringify({ receiptId, imageUrl }),
         });
         if (!res.ok) {
-          if (active) setOcrError("Couldn't scan the receipt. Please try again.");
+          setOcrError("Couldn't scan the receipt. Please try again.");
           return;
         }
         const payload = (await res.json()) as { items?: LineItem[] };
@@ -60,23 +64,18 @@ export function MatrixStateWrapper({
           .update({ processed_data: extracted })
           .eq("id", receiptId)
           .select("id");
-        if (!active) return;
         if (!error && data && data.length > 0) {
           setItems(extracted);
         } else {
           setOcrError("Scanned the receipt but couldn't save the items.");
         }
       } catch {
-        if (active) setOcrError("Couldn't scan the receipt. Please try again.");
+        setOcrError("Couldn't scan the receipt. Please try again.");
       } finally {
-        if (active) setProcessing(false);
+        setProcessing(false);
       }
     };
     void run();
-
-    return () => {
-      active = false;
-    };
   }, [items.length, receiptId, imageUrl]);
 
   if (processing) {
