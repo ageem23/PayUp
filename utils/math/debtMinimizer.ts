@@ -33,8 +33,10 @@ function pickExtreme(standings: Standing[], sign: number): Standing | null {
     if (
       best === null ||
       Math.abs(s.cents) > Math.abs(best.cents) ||
-      (Math.abs(s.cents) === Math.abs(best.cents) &&
-        s.name.localeCompare(best.name) < 0)
+      // Locale-independent code-unit compare: `localeCompare` without an
+      // explicit locale is implementation-defined and would make tie-breaks
+      // vary across runtimes, breaking the determinism guarantee.
+      (Math.abs(s.cents) === Math.abs(best.cents) && s.name < best.name)
     ) {
       best = s;
     }
