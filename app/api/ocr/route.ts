@@ -83,9 +83,8 @@ export async function POST(request: Request) {
     );
   }
   const mimeType = imageResponse.headers.get("content-type") ?? "image/jpeg";
-  const base64 = Buffer.from(await imageResponse.arrayBuffer()).toString(
-    "base64",
-  );
+  const imageBytes = Buffer.from(await imageResponse.arrayBuffer());
+  const base64 = imageBytes.toString("base64");
 
   // Model is env-configurable so it can be changed without a code edit (e.g.
   // when a model is overloaded). Defaults to the latest flash-lite alias.
@@ -111,6 +110,9 @@ export async function POST(request: Request) {
         },
       ],
       config: {
+        // Deterministic decoding so the same receipt extracts consistently
+        // (default sampling can intermittently return an empty array).
+        temperature: 0,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
