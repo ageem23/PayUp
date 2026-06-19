@@ -83,7 +83,7 @@ development_status:
 
   # Epic 7: Precision Algorithmic Multipliers (Tax & Tip Metrics)
   epic-7: in-progress
-  7-1-fee-inputs: backlog
+  7-1-fee-inputs: done
   7-2-proportional-math: backlog
   7-3-google-oauth: backlog
   epic-7-retrospective: optional
