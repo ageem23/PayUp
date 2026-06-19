@@ -91,7 +91,7 @@ development_status:
   # Epic 8: Settle-Up Balancing Ledger Optimization Engine
   epic-8: in-progress
   8-1-ledger-compiler: done
-  8-2-graph-optimization: backlog
+  8-2-graph-optimization: done
   epic-8-retrospective: optional
 
   # Epic 9: Profiles, Preferences & Local Workspace Customization
