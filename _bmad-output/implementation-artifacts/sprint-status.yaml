@@ -82,7 +82,7 @@ development_status:
   epic-6-retrospective: optional
 
   # Epic 7: Precision Algorithmic Multipliers (Tax & Tip Metrics)
-  epic-7: in-progress
+  epic-7: done
   7-1-fee-inputs: done
   7-2-proportional-math: done
   7-3-google-oauth: done
