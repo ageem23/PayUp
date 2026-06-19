@@ -85,7 +85,7 @@ development_status:
   epic-7: in-progress
   7-1-fee-inputs: done
   7-2-proportional-math: done
-  7-3-google-oauth: backlog
+  7-3-google-oauth: done
   epic-7-retrospective: optional
 
   # Epic 8: Settle-Up Balancing Ledger Optimization Engine
