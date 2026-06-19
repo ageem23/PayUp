@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/utils/supabase/client";
+import { isWhitelisted } from "@/utils/auth/whitelist";
 
 export const NOT_AUTHORIZED_MESSAGE =
   "This email is not authorized to access PayUp. Contact an administrator to be added to the whitelist.";
@@ -20,39 +21,23 @@ type AuthContextValue = {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  // Set when a session is rejected because its email isn't whitelisted (e.g. a
+  // Google sign-in by an unlisted user). Lets the OAuth callback distinguish a
+  // whitelist rejection (→ /unauthorized) from "never signed in" (→ /).
+  authNotice: string | null;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   signUp: (email: string, password: string) => Promise<AuthResult>;
+  signInWithGoogle: () => Promise<AuthResult>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-/**
- * Returns true when the email exists in the public.allowed_users whitelist.
- * The email is normalized (trimmed + lowercased) to match Supabase Auth, which
- * stores emails lowercased — without this, "User@x.com" would authenticate but
- * fail a case-sensitive whitelist lookup and get signed out.
- * Uses maybeSingle() so an absent email resolves to null data (not an error).
- * On any query error we fail closed (treat as not authorized).
- */
-async function isWhitelisted(email: string): Promise<boolean> {
-  const normalizedEmail = email.trim().toLowerCase();
-  const { data, error } = await supabase
-    .from("allowed_users")
-    .select("email")
-    .eq("email", normalizedEmail)
-    .maybeSingle();
-
-  if (error) {
-    return false;
-  }
-  return data !== null;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -72,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (active) {
             setSession(null);
             setUser(null);
+            setAuthNotice(NOT_AUTHORIZED_MESSAGE);
           }
           return;
         }
@@ -79,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (active) {
         setSession(nextSession);
         setUser(nextSession?.user ?? null);
+        if (nextSession) setAuthNotice(null);
       }
     };
 
@@ -105,6 +92,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
+      // Clear any stale rejection notice from a prior attempt so it can't
+      // misroute this one (applySession can't clear it on the sign-out's null
+      // event — the notice must survive that to drive the /unauthorized route).
+      setAuthNotice(null);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -126,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
+      setAuthNotice(null);
       // Check the whitelist BEFORE creating the account to avoid orphan auth
       // users that can never sign in.
       if (!(await isWhitelisted(email))) {
@@ -141,13 +133,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const signInWithGoogle = useCallback(async (): Promise<AuthResult> => {
+    setAuthNotice(null);
+    // Implicit OAuth handshake: Supabase routes to Google, then back to our
+    // callback route, which enforces the whitelist intersection before letting
+    // the session into the app. The redirect URL must be allow-listed in the
+    // Supabase Auth settings.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    return { error: error?.message ?? null };
+  }, []);
+
   const signOut = useCallback(async (): Promise<void> => {
     await supabase.auth.signOut();
   }, []);
 
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, signIn, signUp, signOut }}
+      value={{
+        user,
+        session,
+        loading,
+        authNotice,
+        signIn,
+        signUp,
+        signInWithGoogle,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>

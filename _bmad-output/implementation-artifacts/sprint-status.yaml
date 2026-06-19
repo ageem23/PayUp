@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-17
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 project: PayUp
 project_key: NOKEY
 tracking_system: file-system
@@ -82,9 +82,10 @@ development_status:
   epic-6-retrospective: optional
 
   # Epic 7: Precision Algorithmic Multipliers (Tax & Tip Metrics)
-  epic-7: backlog
-  7-1-fee-inputs: backlog
-  7-2-proportional-math: backlog
+  epic-7: done
+  7-1-fee-inputs: done
+  7-2-proportional-math: done
+  7-3-google-oauth: done
   epic-7-retrospective: optional
 
   # Epic 8: Settle-Up Balancing Ledger Optimization Engine
