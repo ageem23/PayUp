@@ -87,6 +87,10 @@ export async function POST(request: Request) {
     "base64",
   );
 
+  // Model is env-configurable so it can be changed without a code edit (e.g.
+  // when a model is overloaded). Defaults to the latest flash-lite alias.
+  const model = process.env.GEMINI_OCR_MODEL ?? "gemini-flash-lite-latest";
+
   // Force a strict JSON array of { name, price } via Structured Outputs.
   // Wrap the provider call so quota/network/parse errors return a clean 502
   // instead of crashing the handler / leaking a stack trace.
@@ -94,7 +98,7 @@ export async function POST(request: Request) {
   try {
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model,
       contents: [
         {
           role: "user",
