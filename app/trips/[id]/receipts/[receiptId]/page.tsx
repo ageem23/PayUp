@@ -9,10 +9,8 @@ import {
   MatrixStateWrapper,
   type LineItem,
 } from "@/components/feature/MatrixStateWrapper";
-import {
-  ReceiptMatrix,
-  type SplitAllocation,
-} from "@/components/feature/ReceiptMatrix";
+import { type SplitAllocation } from "@/components/feature/ReceiptMatrix";
+import { ReceiptSplitView } from "@/components/feature/ReceiptSplitView";
 
 type Trip = { id: string; name: string; participants: string[] | null };
 
@@ -22,6 +20,8 @@ type Receipt = {
   image_url: string | null;
   processed_data: LineItem[] | null;
   split_among: SplitAllocation[] | null;
+  tax: number | null;
+  tip: number | null;
 };
 
 export default function ReceiptMatrixPage() {
@@ -50,7 +50,7 @@ export default function ReceiptMatrixPage() {
             .maybeSingle(),
           supabase
             .from("receipts")
-            .select("id,name,image_url,processed_data,split_among")
+            .select("id,name,image_url,processed_data,split_among,tax,tip")
             .eq("id", receiptId)
             .eq("trip_id", tripId)
             .maybeSingle(),
@@ -138,11 +138,13 @@ export default function ReceiptMatrixPage() {
             initialProcessedData={receipt.processed_data}
           >
             {(items) => (
-              <ReceiptMatrix
+              <ReceiptSplitView
                 receiptId={receipt.id}
                 items={items}
                 participants={participants}
                 initialSplitAmong={receipt.split_among}
+                initialTax={receipt.tax ?? 0}
+                initialTip={receipt.tip ?? 0}
               />
             )}
           </MatrixStateWrapper>
