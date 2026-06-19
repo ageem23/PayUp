@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { LineItem } from "@/components/feature/MatrixStateWrapper";
 import { MatrixRowItem } from "@/components/feature/MatrixRowItem";
 import { SyncStatusBar, type SaveState } from "@/components/feature/SyncStatusBar";
@@ -55,6 +55,9 @@ export function ReceiptMatrix({
     null,
   );
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  // Serialize autosave writes so a slower earlier save can't land after (and
+  // overwrite) a newer one.
+  const saveChain = useRef<Promise<unknown>>(Promise.resolve());
 
   const isAssigned = (itemId: string, participant: string): boolean =>
     splits.some(
@@ -67,8 +70,11 @@ export function ReceiptMatrix({
     const next = applyToggle(splits, itemId, participant, checked);
     setSplits(next);
     setSaveState("saving");
-    // Auto-save the FULL updated split_among array (preserves every line).
-    patchReceiptSplits(receiptId, next)
+    // Auto-save the FULL updated split_among array (preserves every line),
+    // queued after any in-flight save so writes apply in order.
+    saveChain.current = saveChain.current
+      .catch(() => undefined)
+      .then(() => patchReceiptSplits(receiptId, next))
       .then(() => setSaveState("saved"))
       .catch(() => setSaveState("error"));
   };

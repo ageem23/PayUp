@@ -25,5 +25,12 @@ export async function patchReceiptSplits(
   if (error) {
     throw error;
   }
+  // Supabase returns error: null even when zero rows match (stale id / RLS
+  // denial) — treat a no-op write as a failure so it isn't silently "saved".
+  if (!data || data.length === 0) {
+    throw new Error(
+      "Receipt update affected no rows (check the receipt id or permissions).",
+    );
+  }
   return data;
 }

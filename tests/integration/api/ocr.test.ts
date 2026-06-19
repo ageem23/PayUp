@@ -17,6 +17,9 @@ jest.mock("@google/genai", () => ({
   },
 }));
 
+const SUPABASE_URL = "https://test.supabase.co";
+const VALID_IMAGE = `${SUPABASE_URL}/storage/v1/object/public/receipt-images/x.png`;
+
 function makeRequest(body: unknown): Request {
   return new Request("http://localhost/api/ocr", {
     method: "POST",
@@ -27,26 +30,53 @@ function makeRequest(body: unknown): Request {
 
 describe("POST /api/ocr", () => {
   const originalFetch = global.fetch;
+  const originalKey = process.env.GEMINI_API_KEY;
+  const originalSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.GEMINI_API_KEY = "test-key";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
+    process.env.GEMINI_API_KEY = originalKey;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = originalSupabaseUrl;
   });
 
   it("returns 400 when receiptId or imageUrl is missing", async () => {
-    const missingReceipt = await POST(
-      makeRequest({ imageUrl: "https://example.com/i.jpg" }),
+    expect((await POST(makeRequest({ imageUrl: VALID_IMAGE }))).status).toBe(
+      400,
     );
-    expect(missingReceipt.status).toBe(400);
-
-    const missingImage = await POST(makeRequest({ receiptId: "r1" }));
-    expect(missingImage.status).toBe(400);
-
+    expect((await POST(makeRequest({ receiptId: "r1" }))).status).toBe(400);
     expect(mockGenerateContent).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for an imageUrl off the allowed storage host (SSRF guard)", async () => {
+    const res = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: "https://evil.example.com/x.png" }),
+    );
+    expect(res.status).toBe(400);
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when GEMINI_API_KEY is missing", async () => {
+    delete process.env.GEMINI_API_KEY;
+    const res = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(res.status).toBe(503);
+  });
+
+  it("returns 400 when the image cannot be fetched", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+    const res = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(res.status).toBe(400);
   });
 
   it("preserves decimal prices without truncation (numbers and currency strings)", async () => {
@@ -65,7 +95,7 @@ describe("POST /api/ocr", () => {
     });
 
     const response = await POST(
-      makeRequest({ receiptId: "r1", imageUrl: "https://example.com/i.png" }),
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
     );
     expect(response.status).toBe(200);
 

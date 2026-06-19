@@ -4,6 +4,27 @@ import { GoogleGenAI, Type } from "@google/genai";
 type RawLine = { name?: unknown; price?: unknown };
 type LineItem = { id: string; name: string; price: number };
 
+// SSRF guard: only allow https URLs whose host is the project's Supabase
+// instance (where receipt-images live). Blocks file://, internal IPs, and any
+// other host a malicious client might pass.
+function isAllowedImageUrl(raw: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "https:") return false;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) return false;
+  try {
+    return parsed.host === new URL(supabaseUrl).host;
+  } catch {
+    return false;
+  }
+}
+
 // Coerce a model-returned price (a number, or a string like "$19.99") into a
 // raw decimal number. Keeps the full precision; only strips currency/labels.
 function normalizePrice(raw: unknown): number {
@@ -37,6 +58,12 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  if (!isAllowedImageUrl(imageUrl)) {
+    return NextResponse.json(
+      { error: "imageUrl must be an https URL on the configured storage host." },
+      { status: 400 },
+    );
+  }
 
   // Read the key at request time (not module load) so `next build` stays green
   // on runners without the key.
@@ -61,39 +88,50 @@ export async function POST(request: Request) {
   );
 
   // Force a strict JSON array of { name, price } via Structured Outputs.
-  const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
-    contents: [
-      {
-        role: "user",
-        parts: [
-          {
-            text: "Extract every purchased line item from this receipt as a JSON array. Use raw numeric prices only — strip currency symbols ($, €) and labels like 'Total:'. Exclude tax, tip, and grand totals.",
+  // Wrap the provider call so quota/network/parse errors return a clean 502
+  // instead of crashing the handler / leaking a stack trace.
+  let responseText: string;
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: "Extract every purchased line item from this receipt as a JSON array. Use raw numeric prices only — strip currency symbols ($, €) and labels like 'Total:'. Exclude tax, tip, and grand totals.",
+            },
+            { inlineData: { mimeType, data: base64 } },
+          ],
+        },
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              price: { type: Type.NUMBER },
+            },
+            required: ["name", "price"],
           },
-          { inlineData: { mimeType, data: base64 } },
-        ],
-      },
-    ],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING },
-            price: { type: Type.NUMBER },
-          },
-          required: ["name", "price"],
         },
       },
-    },
-  });
+    });
+    responseText = response.text ?? "[]";
+  } catch {
+    return NextResponse.json(
+      { error: "Receipt scanning failed. Please try again." },
+      { status: 502 },
+    );
+  }
 
   let rawLines: RawLine[] = [];
   try {
-    const parsed: unknown = JSON.parse(response.text ?? "[]");
+    const parsed: unknown = JSON.parse(responseText);
     if (Array.isArray(parsed)) {
       rawLines = parsed as RawLine[];
     }

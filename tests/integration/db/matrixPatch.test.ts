@@ -24,7 +24,10 @@ beforeEach(() => {
   chain.from.mockClear();
   chain.update.mockClear();
   chain.eq.mockClear();
-  chain.select.mockReset().mockResolvedValue({ data: [], error: null });
+  chain.select.mockReset().mockResolvedValue({
+    data: [{ id: "receipt-1" }],
+    error: null,
+  });
 });
 
 describe("patchReceiptSplits", () => {
@@ -61,5 +64,15 @@ describe("patchReceiptSplits", () => {
         { item_id: "item-1", assigned_participants: ["Alice"] },
       ]),
     ).rejects.toThrow("rls denied");
+  });
+
+  it("throws when no rows were updated (error: null, empty data)", async () => {
+    chain.select.mockResolvedValueOnce({ data: [], error: null });
+
+    await expect(
+      patchReceiptSplits("missing-receipt", [
+        { item_id: "item-1", assigned_participants: ["Alice"] },
+      ]),
+    ).rejects.toThrow(/affected no rows/i);
   });
 });

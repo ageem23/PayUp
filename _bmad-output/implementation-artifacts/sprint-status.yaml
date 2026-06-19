@@ -75,7 +75,7 @@ development_status:
   epic-5-retrospective: optional
 
   # Epic 6: JSONB Dynamic Assignment Mutations
-  epic-6: in-progress
+  epic-6: done
   6-1-checkbox-grid: done
   6-2-jsonb-patch: done
   6-3-gemini-ocr: done

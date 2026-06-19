@@ -23,6 +23,7 @@ export function MatrixStateWrapper({
     : [];
   const [items, setItems] = useState<LineItem[]>(initialItems);
   const [processing, setProcessing] = useState(initialItems.length === 0);
+  const [ocrError, setOcrError] = useState<string | null>(null);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -38,13 +39,17 @@ export function MatrixStateWrapper({
 
     let active = true;
     const run = async () => {
+      setOcrError(null);
       try {
         const res = await fetch("/api/ocr", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ receiptId, imageUrl }),
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (active) setOcrError("Couldn't scan the receipt. Please try again.");
+          return;
+        }
         const payload = (await res.json()) as { items?: LineItem[] };
         const extracted = Array.isArray(payload.items) ? payload.items : [];
         if (extracted.length === 0) return;
@@ -58,10 +63,11 @@ export function MatrixStateWrapper({
         if (!active) return;
         if (!error && data && data.length > 0) {
           setItems(extracted);
+        } else {
+          setOcrError("Scanned the receipt but couldn't save the items.");
         }
       } catch {
-        // Network/parse failure — fall through to stop the spinner so the user
-        // isn't stuck on a skeleton; the matrix renders empty.
+        if (active) setOcrError("Couldn't scan the receipt. Please try again.");
       } finally {
         if (active) setProcessing(false);
       }
@@ -87,5 +93,14 @@ export function MatrixStateWrapper({
     );
   }
 
-  return <>{children(items)}</>;
+  return (
+    <>
+      {ocrError ? (
+        <p role="alert" className="mb-2 text-sm text-red-600">
+          {ocrError}
+        </p>
+      ) : null}
+      {children(items)}
+    </>
+  );
 }
