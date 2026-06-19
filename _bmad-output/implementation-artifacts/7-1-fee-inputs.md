@@ -66,6 +66,17 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 **Modified:**
 - `app/trips/[id]/receipts/[receiptId]/page.tsx` (select tax/tip, render `ReceiptSplitView`)
 
+## Review Findings
+
+_From `bmad-code-review` (adversarial: Blind Hunter + Edge Case Hunter + Acceptance Auditor) on `main...epic-7`, 2026-06-19._
+
+- [x] [Review][Patch] Debounced fee save is dropped on unmount instead of flushed [components/feature/ReceiptSplitView.tsx] — **FIXED:** unmount cleanup now fire-and-forget flushes a still-pending dirty edit via `patchReceiptFees` (timer nulled after firing to avoid a duplicate write). (blind+edge, HIGH)
+- [x] [Review][Patch] Sub-dollar / multi-decimal fees can't be typed [components/feature/ReceiptSummarySidebar.tsx] — **FIXED:** `FeeField` now holds a text draft (`type=text` + `inputMode=decimal`) gated by `/^\d*\.?\d{0,2}$/`, so "0.75"/"1.05" type correctly and "5e3"/letters/negatives are rejected; re-syncs from the prop on external change. (edge, HIGH-UX)
+- [x] [Review][Patch] Stale-closure cross-write of tax/tip [components/feature/ReceiptSplitView.tsx] — **FIXED:** handlers write the changed field into `currentFeesRef` synchronously; the debounced save and unmount flush read the latest pair from the ref, not a render closure. (blind+edge, MEDIUM)
+- [x] [Review][Defer] Login page (`/`) doesn't redirect already-authenticated users [app/page.tsx] — deferred, pre-existing (the login form never auto-redirected; not introduced by Epic 7).
+
+**Dismissed (4):** OAuth callback null-race + stale `authNotice` (handled — `getSession()` awaits the client's URL-detection init, and the OAuth flow is a full page redirect so in-memory `authNotice` resets); client-side whitelist gate and largest-remainder distribution (documented intentional deviations; Acceptance Auditor confirmed both satisfy their ACs).
+
 ## Change Log
 
 | Date | Version | Description | Author |

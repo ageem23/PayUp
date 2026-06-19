@@ -72,6 +72,13 @@ export function ReceiptSplitView({
     tax: initialTax,
     tip: initialTip,
   });
+  // Latest edited fees, updated synchronously by the handlers. The debounced
+  // save and the unmount flush read from here (not a render closure) so a fast
+  // tax-then-tip edit can't persist a stale value for the other column.
+  const currentFeesRef = useRef<{ tax: number; tip: number }>({
+    tax: initialTax,
+    tip: initialTip,
+  });
   const feeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Serialize writes so a slower earlier save can't land after a newer one.
   const feeChain = useRef<Promise<unknown>>(Promise.resolve());
@@ -79,47 +86,63 @@ export function ReceiptSplitView({
   const splitChain = useRef<Promise<unknown>>(Promise.resolve());
   const splitSeq = useRef(0);
 
-  const scheduleFeeSave = useCallback(
-    (nextTax: number, nextTip: number) => {
-      if (feeTimerRef.current) clearTimeout(feeTimerRef.current);
-      feeTimerRef.current = setTimeout(() => {
-        if (
-          nextTax === savedFeesRef.current.tax &&
-          nextTip === savedFeesRef.current.tip
-        )
-          return;
-        const seq = ++feeSeq.current;
-        setFeeSaveState("saving");
-        feeChain.current = feeChain.current
-          .catch(() => undefined)
-          .then(() => patchReceiptFees(receiptId, { tax: nextTax, tip: nextTip }))
-          .then(() => {
-            savedFeesRef.current = { tax: nextTax, tip: nextTip };
-            if (feeSeq.current === seq) setFeeSaveState("saved");
-          })
-          .catch(() => {
-            if (feeSeq.current === seq) setFeeSaveState("error");
-          });
-      }, FEE_SAVE_DEBOUNCE_MS);
-    },
-    [receiptId],
-  );
+  // Persist the latest fees from currentFeesRef. Shared by the debounce timer
+  // and the unmount flush so both write the same up-to-date pair.
+  const runFeeSave = useCallback(() => {
+    const { tax: nextTax, tip: nextTip } = currentFeesRef.current;
+    if (
+      nextTax === savedFeesRef.current.tax &&
+      nextTip === savedFeesRef.current.tip
+    )
+      return;
+    const seq = ++feeSeq.current;
+    setFeeSaveState("saving");
+    feeChain.current = feeChain.current
+      .catch(() => undefined)
+      .then(() => patchReceiptFees(receiptId, { tax: nextTax, tip: nextTip }))
+      .then(() => {
+        savedFeesRef.current = { tax: nextTax, tip: nextTip };
+        if (feeSeq.current === seq) setFeeSaveState("saved");
+      })
+      .catch(() => {
+        if (feeSeq.current === seq) setFeeSaveState("error");
+      });
+  }, [receiptId]);
 
-  // Flush any pending fee debounce on unmount so an in-flight edit isn't lost.
+  const scheduleFeeSave = useCallback(() => {
+    if (feeTimerRef.current) clearTimeout(feeTimerRef.current);
+    feeTimerRef.current = setTimeout(() => {
+      feeTimerRef.current = null;
+      runFeeSave();
+    }, FEE_SAVE_DEBOUNCE_MS);
+  }, [runFeeSave]);
+
+  // On unmount, flush a still-pending debounced edit so it isn't lost when the
+  // user navigates away within the debounce window. Fire-and-forget — the
+  // serialized chain isn't needed once the view is gone.
   useEffect(() => {
     return () => {
-      if (feeTimerRef.current) clearTimeout(feeTimerRef.current);
+      if (feeTimerRef.current) {
+        clearTimeout(feeTimerRef.current);
+        feeTimerRef.current = null;
+        const { tax, tip } = currentFeesRef.current;
+        if (tax !== savedFeesRef.current.tax || tip !== savedFeesRef.current.tip) {
+          void patchReceiptFees(receiptId, { tax, tip }).catch(() => undefined);
+        }
+      }
     };
-  }, []);
+  }, [receiptId]);
 
   const handleTaxChange = (value: number) => {
     setTax(value);
-    scheduleFeeSave(value, tip);
+    currentFeesRef.current = { ...currentFeesRef.current, tax: value };
+    scheduleFeeSave();
   };
 
   const handleTipChange = (value: number) => {
     setTip(value);
-    scheduleFeeSave(tax, value);
+    currentFeesRef.current = { ...currentFeesRef.current, tip: value };
+    scheduleFeeSave();
   };
 
   const handleToggle = (itemId: string, participant: string, checked: boolean) => {

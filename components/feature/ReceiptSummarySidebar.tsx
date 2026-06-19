@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { SyncStatusBar, type SaveState } from "@/components/feature/SyncStatusBar";
 import type { ProportionalSplitResult } from "@/utils/math/billCalculations";
 
@@ -10,6 +11,11 @@ export function parseFeeInput(raw: string): number {
   if (!Number.isFinite(value) || value < 0) return 0;
   return value;
 }
+
+// Allowed in-progress text: empty, or digits with an optional single decimal
+// point and up to two fractional digits. Rejects letters, "e" notation, signs,
+// and extra precision so the field only ever holds a valid currency draft.
+const FEE_DRAFT_PATTERN = /^\d*\.?\d{0,2}$/;
 
 const money = (value: number): string => `$${value.toFixed(2)}`;
 
@@ -30,18 +36,36 @@ type FeeFieldProps = {
 };
 
 function FeeField({ id, label, value, onChange }: FeeFieldProps) {
+  // Hold the raw text the user is typing so intermediate states like "0." or
+  // "1.0" survive re-renders — a controlled numeric `value` would force the
+  // parsed number back each keystroke and make "0.75"/"1.05" impossible to type.
+  const [draft, setDraft] = useState(() => (value === 0 ? "" : value.toString()));
+
+  // Re-sync when the value changes from outside (initial load / external reset),
+  // but leave the live edit buffer alone while it already parses to `value`.
+  useEffect(() => {
+    if (parseFeeInput(draft) !== value) {
+      setDraft(value === 0 ? "" : value.toString());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on `value`; `draft` is the edit buffer, not a trigger
+  }, [value]);
+
+  const handleChange = (raw: string) => {
+    if (raw !== "" && !FEE_DRAFT_PATTERN.test(raw)) return; // ignore invalid keystrokes
+    setDraft(raw);
+    onChange(parseFeeInput(raw));
+  };
+
   return (
     <label htmlFor={id} className="flex flex-col gap-1 text-sm">
       {label}
       <input
         id={id}
-        type="number"
-        step="0.01"
-        min="0"
+        type="text"
         inputMode="decimal"
         placeholder="0.00"
-        value={value === 0 ? "" : value}
-        onChange={(event) => onChange(parseFeeInput(event.target.value))}
+        value={draft}
+        onChange={(event) => handleChange(event.target.value)}
         className="w-full rounded border border-neutral-300 bg-transparent p-2 text-right font-mono"
       />
     </label>
