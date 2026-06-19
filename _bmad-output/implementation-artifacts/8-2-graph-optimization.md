@@ -62,6 +62,20 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 **Modified:**
 - `app/trips/[id]/page.tsx` (fetch receipts; compute + render Settle Up panel)
 
+## Review Findings
+
+_From `bmad-code-review` (adversarial: Blind Hunter + Edge Case Hunter + Acceptance Auditor) on `main...epic-8`, 2026-06-19._
+
+- [x] [Review][Patch] Failed receipts fetch rendered as "Everyone's settled up" [app/trips/[id]/page.tsx, components/feature/SettleUpLedger.tsx] — **FIXED:** Supabase resolves (not throws) on query error, so `receiptsRes.error` is now checked explicitly; on error (or a non-`balanced` ledger) the panel shows "Couldn't calculate balances" instead of a false settled state. Repurposed the panel's dead `loading` prop into an `error` prop. (blind+edge, MEDIUM)
+- [x] [Review][Patch] `compileLedger` `balanced` flag was ignored by the caller [app/trips/[id]/page.tsx] — **FIXED:** the page now consumes `balanced` from the memo and treats `!balanced` as the same error state (AC4 intent — don't show misleading transfers when the ledger doesn't reconcile). (auditor, LOW)
+
+**Dismissed (5):**
+- Sub-cent residual penny dropped in `minimizeDebts` — can't occur from `compileLedger` output (always whole-cent dollars that sum to 0); only a hand-crafted sub-cent input triggers it.
+- `paid_by` null/phantom key — `receipts.paid_by` is `NOT NULL` (migration 0004) and the staging flow always sets a payer; a payer-not-in-participants is already correctly credited.
+- Per-receipt rounding drift — non-issue: Epic 7's `distributeByWeight` distributes full tax/tip cents and shares reconcile exactly to `grandTotal`, so each receipt nets to zero (Auditor verified against `billCalculations.ts`).
+- Stale ledger after editing a split — App Router remounts `/trips/[id]` on navigation back, so `loadTrip` refetches; live updates are Epic 12's (realtime) scope.
+- Unassigned-items tax/tip even-split — existing Epic 7 fallback behavior; stays balanced; out of scope for Epic 8.
+
 ## Change Log
 
 | Date | Version | Description | Author |

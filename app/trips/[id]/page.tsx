@@ -28,6 +28,7 @@ export default function TripHubPage() {
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [receipts, setReceipts] = useState<LedgerReceipt[]>([]);
+  const [receiptsError, setReceiptsError] = useState(false);
   const [loadingTrip, setLoadingTrip] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stagingUrl, setStagingUrl] = useState<string | null>(null);
@@ -56,18 +57,25 @@ export default function TripHubPage() {
           setError("Trip not found.");
           setTrip(null);
           setReceipts([]);
+          setReceiptsError(false);
         } else {
           setTrip(tripRes.data as Trip);
-          setReceipts(
-            Array.isArray(receiptsRes.data)
-              ? (receiptsRes.data as LedgerReceipt[])
-              : [],
-          );
+          // Supabase resolves (not throws) on a query error, so check it
+          // explicitly — otherwise a failed receipts load would look like an
+          // empty (fully settled) trip.
+          if (receiptsRes.error || !Array.isArray(receiptsRes.data)) {
+            setReceipts([]);
+            setReceiptsError(true);
+          } else {
+            setReceipts(receiptsRes.data as LedgerReceipt[]);
+            setReceiptsError(false);
+          }
         }
       } catch {
         setError("Could not load this trip.");
         setTrip(null);
         setReceipts([]);
+        setReceiptsError(false);
       } finally {
         setLoadingTrip(false);
       }
@@ -76,11 +84,12 @@ export default function TripHubPage() {
   );
 
   // Recompute the minimal settle-up transfers whenever the trip's receipts or
-  // participant list change.
-  const transfers = useMemo(() => {
-    if (!trip) return [];
-    const { net } = compileLedger(receipts, trip.participants ?? []);
-    return minimizeDebts(net);
+  // participant list change. `balanced` is false if the ledger doesn't reconcile
+  // to zero — in that case we don't render (misleading) transfers.
+  const { transfers, balanced } = useMemo(() => {
+    if (!trip) return { transfers: [], balanced: true };
+    const { net, balanced } = compileLedger(receipts, trip.participants ?? []);
+    return { transfers: minimizeDebts(net), balanced };
   }, [receipts, trip]);
 
   useEffect(() => {
@@ -128,7 +137,7 @@ export default function TripHubPage() {
         <ReceiptUploadZone onUploaded={(url) => setStagingUrl(url)} />
       </section>
 
-      <SettleUpLedger transfers={transfers} />
+      <SettleUpLedger transfers={transfers} error={receiptsError || !balanced} />
 
       {stagingUrl ? (
         <ReceiptStagingModal
