@@ -5,6 +5,10 @@ on:
   pull_request:
     branches: [main]
 
+# Least-privilege token: this workflow only reads the repo to lint/build/test.
+permissions:
+  contents: read
+
 # Collapse the push/pull_request double-run for same-repo PR branches and
 # cancel superseded runs on rapid pushes.
 concurrency:

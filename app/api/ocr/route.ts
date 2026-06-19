@@ -4,25 +4,27 @@ import { GoogleGenAI, Type } from "@google/genai";
 type RawLine = { name?: unknown; price?: unknown };
 type LineItem = { id: string; name: string; price: number };
 
-// SSRF guard: only allow https URLs whose host is the project's Supabase
-// instance (where receipt-images live). Blocks file://, internal IPs, and any
-// other host a malicious client might pass.
-function isAllowedImageUrl(raw: string): boolean {
-  let parsed: URL;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    return false;
-  }
-  if (parsed.protocol !== "https:") return false;
-
+// SSRF guard. Accepts only https URLs whose host is the project's Supabase
+// instance (where receipt-images live), then REBUILDS the URL on that trusted
+// origin so the request host is a server constant, never the attacker-supplied
+// value — only the path/query carries over. This defeats SSRF (file://,
+// internal IPs, alternate hosts) and breaks the taint flow into fetch().
+function toSafeImageUrl(raw: string): URL | null {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!supabaseUrl) return false;
+  if (!supabaseUrl) return null;
+
+  let candidate: URL;
+  let allowed: URL;
   try {
-    return parsed.host === new URL(supabaseUrl).host;
+    candidate = new URL(raw);
+    allowed = new URL(supabaseUrl);
   } catch {
-    return false;
+    return null;
   }
+  if (candidate.protocol !== "https:") return null;
+  if (candidate.host !== allowed.host) return null;
+
+  return new URL(candidate.pathname + candidate.search, allowed.origin);
 }
 
 // Coerce a model-returned price (a number, or a string like "$19.99") into a
@@ -58,7 +60,8 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  if (!isAllowedImageUrl(imageUrl)) {
+  const safeImageUrl = toSafeImageUrl(imageUrl);
+  if (!safeImageUrl) {
     return NextResponse.json(
       { error: "imageUrl must be an https URL on the configured storage host." },
       { status: 400 },
@@ -75,7 +78,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const imageResponse = await fetch(imageUrl);
+  const imageResponse = await fetch(safeImageUrl);
   if (!imageResponse.ok) {
     return NextResponse.json(
       { error: "Could not fetch the receipt image." },
@@ -142,7 +145,10 @@ export async function POST(request: Request) {
   try {
     const parsed: unknown = JSON.parse(responseText);
     if (Array.isArray(parsed)) {
-      rawLines = parsed as RawLine[];
+      rawLines = parsed.filter(
+        (entry): entry is RawLine =>
+          typeof entry === "object" && entry !== null,
+      );
     }
   } catch {
     rawLines = [];
