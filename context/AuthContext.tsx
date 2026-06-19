@@ -92,6 +92,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
+      // Clear any stale rejection notice from a prior attempt so it can't
+      // misroute this one (applySession can't clear it on the sign-out's null
+      // event — the notice must survive that to drive the /unauthorized route).
+      setAuthNotice(null);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -113,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
+      setAuthNotice(null);
       // Check the whitelist BEFORE creating the account to avoid orphan auth
       // users that can never sign in.
       if (!(await isWhitelisted(email))) {
@@ -129,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signInWithGoogle = useCallback(async (): Promise<AuthResult> => {
+    setAuthNotice(null);
     // Implicit OAuth handshake: Supabase routes to Google, then back to our
     // callback route, which enforces the whitelist intersection before letting
     // the session into the app. The redirect URL must be allow-listed in the
