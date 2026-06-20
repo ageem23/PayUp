@@ -95,7 +95,7 @@ development_status:
   epic-8-retrospective: optional
 
   # Epic 9: Profiles, Preferences & Local Workspace Customization
-  epic-9: in-progress
+  epic-9: done
   9-1-dark-mode: done
   9-2-color-profiles: done
   epic-9-retrospective: optional
