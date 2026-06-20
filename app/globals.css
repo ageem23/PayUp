@@ -5,6 +5,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  color-scheme: light;
 }
 
 /* Dark theme (Epic 9, Story 9.1): toggled by the `dark` class on <html>

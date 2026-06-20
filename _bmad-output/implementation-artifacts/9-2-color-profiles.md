@@ -66,6 +66,16 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 - `app/dashboard/page.tsx` (ProfileSelector panel)
 - `components/feature/MatrixRowItem.tsx` (accent-tinted checkbox)
 
+## Review Findings
+
+_From `bmad-code-review` (adversarial: Blind Hunter + Edge Case Hunter + Acceptance Auditor) on `main...epic-9`, 2026-06-20._
+
+- [x] [Review][Patch] Accent classes purged from production CSS [tailwind.config.ts] — **FIXED (HIGH):** the accent/swatch literals live only in `utils/profile/accentColors.ts`, which wasn't in Tailwind's `content` globs (only `app`/`components`/`context`), so JIT purged them — swatches blank, checkbox tint dead in a prod build. Added `./utils/**` to `content`; verified `accent-rose-600` now ships in the built CSS. (auditor, HIGH)
+- [x] [Review][Patch] Dashboard status badges glare in dark mode [app/dashboard/page.tsx] — **FIXED:** added `dark:` variants to the Settled/Active pills (`bg-green-100`/`bg-amber-100` had no dark variant → bright chips on the dark bg). (edge, MEDIUM)
+- [x] [Review][Patch] `color-scheme` only set for dark [app/globals.css] — **FIXED:** added `color-scheme: light` to `:root` so native controls explicitly match in light too. (blind, LOW)
+
+**Dismissed (7):** live OS-theme-change listener, cross-tab `storage` sync, and a pre-paint script for the accent (enhancements beyond the ACs; theme already has anti-flash); private-mode persistence loss (documented best-effort); inline script not re-running on client nav (class persists on `<html>` across SPA nav); `useAccentColor` throwing outside its provider (consistent with `useAuth`/`useTheme`; always mounted under the provider); per-user accent mapping (documented Epic 12 / realtime deferral).
+
 ## Change Log
 
 | Date | Version | Description | Author |
