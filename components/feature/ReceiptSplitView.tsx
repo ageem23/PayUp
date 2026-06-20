@@ -127,17 +127,23 @@ export function ReceiptSplitView({
   // and the unmount flush so both write the same up-to-date pair.
   const runFeeSave = useCallback(() => {
     const { tax: nextTax, tip: nextTip } = currentFeesRef.current;
-    const prev = savedFeesRef.current;
-    if (nextTax === prev.tax && nextTip === prev.tip) return;
-    // Audit the committed fee change (once per debounced edit, not per keystroke).
-    if (nextTax !== prev.tax) logActivity(`set Tax to ${money(nextTax)}`);
-    if (nextTip !== prev.tip) logActivity(`set Tip to ${money(nextTip)}`);
+    if (
+      nextTax === savedFeesRef.current.tax &&
+      nextTip === savedFeesRef.current.tip
+    )
+      return;
     const seq = ++feeSeq.current;
     setFeeSaveState("saving");
     feeChain.current = feeChain.current
       .catch(() => undefined)
       .then(() => patchReceiptFees(receiptId, { tax: nextTax, tip: nextTip }))
       .then(() => {
+        // Audit only AFTER a successful commit, diffing against the last
+        // committed values — so a failed (then retried) save can't log a change
+        // that never persisted, nor double-log the same one.
+        const before = savedFeesRef.current;
+        if (nextTax !== before.tax) logActivity(`set Tax to ${money(nextTax)}`);
+        if (nextTip !== before.tip) logActivity(`set Tip to ${money(nextTip)}`);
         savedFeesRef.current = { tax: nextTax, tip: nextTip };
         if (feeSeq.current === seq) setFeeSaveState("saved");
       })

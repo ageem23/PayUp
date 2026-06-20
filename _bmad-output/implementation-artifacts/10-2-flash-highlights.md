@@ -31,7 +31,7 @@ so that I'm instantly aware of edits.
 AC2 mentions a tone "depending on the user who initiated the change." Per-user/realtime distinction is **Epic 12**; here every local change flashes the one soft-yellow tone from the spec example. The per-user color (and flashing on *remote* edits) lands with realtime.
 
 ### Animation lifecycle
-`animation: ... forwards` plays once and holds the final transparent state; the key is removed after 2 s so the class drops cleanly. Rapid re-toggles of the same cell within 2 s won't restart the animation (the key is already set) — acceptable; not worth a remount-key hack for a rare case.
+`animation: ... forwards` plays once and holds the final transparent state. The flash overlay is keyed by a per-cell monotonic version, so a re-toggle within 2 s **does** restart the animation (the overlay `<span>` remounts on each version bump). One timer per cell resets that cell's window on re-toggle, and all outstanding timers are cleared on unmount so no highlight lingers. _(Note: this describes the post-review implementation; the original draft used a key-Set that didn't restart — corrected during the code review below.)_
 
 ### No DB/env/tests
 CSS + local component state only. "Tested" = lint + build clean (+ existing suite green); confirmed the keyframe is present in the production CSS.
