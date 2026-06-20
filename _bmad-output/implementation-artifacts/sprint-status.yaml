@@ -109,7 +109,7 @@ development_status:
   # Epic 11: Magic Link Invitations
   epic-11: in-progress
   11-1-generate-manage-invite-links: done
-  11-2-redeem-magic-invite-link: backlog
+  11-2-redeem-magic-invite-link: done
   epic-11-retrospective: optional
 
   # Epic 12: Real-Time Collaboration

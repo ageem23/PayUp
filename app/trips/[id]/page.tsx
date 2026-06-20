@@ -37,18 +37,19 @@ export default function TripHubPage() {
   const [stagingUrl, setStagingUrl] = useState<string | null>(null);
 
   const loadTrip = useCallback(
-    async (userId: string) => {
+    async () => {
       setLoadingTrip(true);
       setError(null);
       try {
         // Fetch the trip and its receipts together; the receipts feed the
         // cross-receipt Settle Up ledger (Epic 8). RLS scopes both to the user.
         const [tripRes, receiptsRes] = await Promise.all([
+          // No owner filter: RLS returns the trip if the user owns it OR is a
+          // member (Feature 11.3), so invited members can open it too.
           supabase
             .from("trips")
             .select("id,name,participants,user_id,invite_token")
             .eq("id", tripId)
-            .eq("user_id", userId)
             .maybeSingle(),
           supabase
             .from("receipts")
@@ -103,7 +104,7 @@ export default function TripHubPage() {
       router.replace("/");
       return;
     }
-    void loadTrip(user.id);
+    void loadTrip();
   }, [loading, user, router, loadTrip]);
 
   if (loading || !user || loadingTrip) {

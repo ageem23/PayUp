@@ -31,14 +31,15 @@ export default function DashboardPage() {
   const [loadingTrips, setLoadingTrips] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadTrips = useCallback(async (userId: string) => {
+  const loadTrips = useCallback(async () => {
     setLoadingTrips(true);
     setError(null);
     try {
+      // No owner filter: RLS returns trips the user owns OR is a member of
+      // (Feature 11.3), so shared trips appear here too.
       const { data, error: fetchError } = await supabase
         .from("trips")
         .select("id,name,created_at,is_settled")
-        .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
       if (fetchError) {
@@ -61,7 +62,7 @@ export default function DashboardPage() {
       router.replace("/");
       return;
     }
-    void loadTrips(user.id);
+    void loadTrips();
   }, [loading, user, router, loadTrips]);
 
   if (loading || !user) {
