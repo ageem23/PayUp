@@ -19,6 +19,17 @@ const config: Config = {
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
+      // Cell update highlight (Epic 10, Story 10.2): a soft pulse that fades to
+      // transparent within 2s. `forwards` holds the final transparent state.
+      keyframes: {
+        cellFlash: {
+          "0%": { backgroundColor: "rgba(254, 240, 138, 0.6)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+      },
+      animation: {
+        "flash-cell": "cellFlash 2s ease-out forwards",
+      },
     },
   },
   plugins: [],

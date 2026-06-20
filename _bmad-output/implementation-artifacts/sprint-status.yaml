@@ -103,7 +103,7 @@ development_status:
   # Epic 10: Activity Auditing Timeline Logging
   epic-10: in-progress
   10-1-activity-log: done
-  10-2-flash-highlights: backlog
+  10-2-flash-highlights: done
   epic-10-retrospective: optional
 
   # Epic 11: Magic Link Invitations

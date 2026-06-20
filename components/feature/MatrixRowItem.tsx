@@ -14,6 +14,7 @@ type Props = {
   item: LineItem;
   participants: string[];
   isAssigned: (participant: string) => boolean;
+  isFlashing: (participant: string) => boolean;
   onToggle: (participant: string, checked: boolean) => void;
   onHoverParticipant: (participant: string | null) => void;
 };
@@ -22,6 +23,7 @@ export function MatrixRowItem({
   item,
   participants,
   isAssigned,
+  isFlashing,
   onToggle,
   onHoverParticipant,
 }: Props) {
@@ -34,7 +36,9 @@ export function MatrixRowItem({
       {participants.map((participant) => (
         <td
           key={participant}
-          className="px-3 py-2 text-center"
+          className={`px-3 py-2 text-center ${
+            isFlashing(participant) ? "animate-flash-cell" : ""
+          }`}
           onMouseEnter={() => onHoverParticipant(participant)}
           onMouseLeave={() => onHoverParticipant(null)}
         >
