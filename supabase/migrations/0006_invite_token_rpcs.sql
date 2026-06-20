@@ -47,9 +47,25 @@ begin
 end;
 $$;
 
+-- Read the current invite token — OWNER ONLY. The token is deliberately NOT
+-- selected into the trip page payload (members can read the trips row via RLS,
+-- and RLS can't column-mask), so the owner-only Share panel fetches it here.
+create or replace function public.get_invite_token(trip_id_input uuid)
+returns uuid
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select invite_token from public.trips
+  where id = trip_id_input and user_id = auth.uid();
+$$;
+
 -- Only authenticated users may call these; the owner check inside still gates
 -- per-trip access.
 revoke execute on function public.generate_invite_token(uuid) from anon;
 revoke execute on function public.disable_invite_token(uuid) from anon;
+revoke execute on function public.get_invite_token(uuid) from anon;
 grant execute on function public.generate_invite_token(uuid) to authenticated;
 grant execute on function public.disable_invite_token(uuid) to authenticated;
+grant execute on function public.get_invite_token(uuid) to authenticated;

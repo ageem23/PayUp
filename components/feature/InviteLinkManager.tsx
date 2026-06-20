@@ -1,21 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/utils/supabase/client";
 
 type Props = {
   tripId: string;
-  initialToken: string | null;
 };
 
 // Owner-only "Share" panel (Epic 11, Story 11.1): generate, copy, and disable a
-// magic invite link. Token mutations go through SECURITY DEFINER RPCs so the
-// owner check lives in the DB, not just the UI.
-export function InviteLinkManager({ tripId, initialToken }: Props) {
-  const [token, setToken] = useState<string | null>(initialToken);
+// magic invite link. Token reads/mutations all go through SECURITY DEFINER RPCs
+// with an owner check, so the token is never exposed to members (it is not
+// selected into the trip page payload).
+export function InviteLinkManager({ tripId }: Props) {
+  const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load any existing token (owner-only RPC). This panel only renders for the
+  // owner, so a non-owner never reaches here.
+  useEffect(() => {
+    let active = true;
+    void supabase
+      .rpc("get_invite_token", { trip_id_input: tripId })
+      .then(({ data }) => {
+        if (active && data) setToken(data as string);
+      });
+    return () => {
+      active = false;
+    };
+  }, [tripId]);
 
   // Built on the client so the origin matches wherever the app is served.
   const link =
@@ -68,7 +82,8 @@ export function InviteLinkManager({ tripId, initialToken }: Props) {
     <section className="flex flex-col gap-3 rounded-lg border border-neutral-300 p-4 dark:border-neutral-700">
       <h2 className="text-lg font-medium">Share</h2>
       <p className="text-sm text-neutral-500">
-        Anyone with the link can log in and join this trip as a member.
+        Anyone allow-listed can use this link to log in and join the trip as a
+        member.
       </p>
 
       {link ? (

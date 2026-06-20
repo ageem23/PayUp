@@ -20,7 +20,6 @@ type Trip = {
   name: string;
   participants: string[] | null;
   user_id: string | null;
-  invite_token: string | null;
 };
 
 export default function TripHubPage() {
@@ -48,7 +47,7 @@ export default function TripHubPage() {
           // member (Feature 11.3), so invited members can open it too.
           supabase
             .from("trips")
-            .select("id,name,participants,user_id,invite_token")
+            .select("id,name,participants,user_id")
             .eq("id", tripId)
             .maybeSingle(),
           supabase
@@ -145,7 +144,7 @@ export default function TripHubPage() {
 
       {isOwner ? (
         <div className="mt-6">
-          <InviteLinkManager tripId={trip.id} initialToken={trip.invite_token} />
+          <InviteLinkManager tripId={trip.id} />
         </div>
       ) : null}
 

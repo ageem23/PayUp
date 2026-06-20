@@ -64,6 +64,13 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 **Modified:**
 - `app/trips/[id]/page.tsx` (select user_id/invite_token; owner-only Share section)
 
+## Review Findings
+
+_From `bmad-code-review` (adversarial; security-focused) on `main...epic-11`, 2026-06-20._
+
+- [x] [Review][Patch] Invite token leaked to members via the trip payload [supabase/migrations/0006_invite_token_rpcs.sql, components/feature/InviteLinkManager.tsx, app/trips/[id]/page.tsx] — **FIXED (HIGH):** the trip query selected `invite_token`, and members can read the trips row (RLS can't column-mask) — so any member could read the token and re-share access. Added an owner-only `get_invite_token` SECURITY DEFINER RPC; `InviteLinkManager` fetches the token itself (it only renders for the owner), and `invite_token` was removed from the page query entirely.
+- [x] [Review][Patch] Share copy overstated who can join [components/feature/InviteLinkManager.tsx] — **FIXED (LOW):** reworded to "Anyone allow-listed…" since redemption requires a whitelisted login.
+
 ## Change Log
 
 | Date | Version | Description | Author |

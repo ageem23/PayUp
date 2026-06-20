@@ -11,6 +11,7 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/utils/supabase/client";
 import { isWhitelisted } from "@/utils/auth/whitelist";
+import { readSafeRedirect } from "@/utils/auth/redirect";
 
 export const NOT_AUTHORIZED_MESSAGE =
   "This email is not authorized to access PayUp. Contact an administrator to be added to the whitelist.";
@@ -138,10 +139,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Implicit OAuth handshake: Supabase routes to Google, then back to our
     // callback route, which enforces the whitelist intersection before letting
     // the session into the app. The redirect URL must be allow-listed in the
-    // Supabase Auth settings.
+    // Supabase Auth settings. Carry a safe `?redirect` (e.g. an invite link)
+    // through to the callback so OAuth users land where they intended.
+    const redirect = readSafeRedirect();
+    const callbackUrl = `${window.location.origin}/auth/callback${
+      redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""
+    }`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: callbackUrl },
     });
     return { error: error?.message ?? null };
   }, []);

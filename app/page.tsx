@@ -1,32 +1,36 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, NOT_AUTHORIZED_MESSAGE } from "@/context/AuthContext";
+import { readSafeRedirect } from "@/utils/auth/redirect";
 
 type Mode = "login" | "register";
 
-// Where to go after login: an internal `?redirect` path (e.g. an invite link
-// the user was sent to), else the dashboard. Only same-origin absolute paths are
-// allowed — rejects `//host` and absolute URLs to prevent open redirects.
+// Where to go after login: a safe internal `?redirect` path (e.g. an invite link
+// the user was sent to), else the dashboard.
 function postLoginTarget(): string {
-  if (typeof window === "undefined") return "/dashboard";
-  const redirect = new URLSearchParams(window.location.search).get("redirect");
-  if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
-    return redirect;
-  }
-  return "/dashboard";
+  return readSafeRedirect() ?? "/dashboard";
 }
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading, signIn, signUp, signInWithGoogle } =
+    useAuth();
 
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Already signed in (e.g. landed on `/?redirect=…` with a live session, or
+  // returned here after authenticating) → go straight to the target.
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(postLoginTarget());
+    }
+  }, [authLoading, user, router]);
 
   const handleGoogle = async () => {
     setLoading(true);

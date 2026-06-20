@@ -46,15 +46,17 @@ $$;
 revoke execute on function public.is_trip_member(uuid) from anon;
 grant execute on function public.is_trip_member(uuid) to authenticated;
 
--- Feature 11.3: members get read + edit on the trip (delete stays owner-only).
--- Added as separate permissive policies (OR'd with the existing owner policies).
+-- Feature 11.3: members get READ on the trip so they can open it. They do NOT
+-- get UPDATE on the trips row: RLS can't restrict columns, so a member UPDATE
+-- grant would let a member overwrite user_id (hijack ownership) or invite_token
+-- (bypassing the owner-only token RPCs). Member editing happens on `receipts`
+-- (below); trip metadata + ownership stay owner-only.
 drop policy if exists "Members can read trips" on public.trips;
 create policy "Members can read trips" on public.trips
   for select using (public.is_trip_member(id));
 
+-- (Intentionally no member UPDATE/DELETE policy on trips — owner-only.)
 drop policy if exists "Members can update trips" on public.trips;
-create policy "Members can update trips" on public.trips
-  for update using (public.is_trip_member(id)) with check (public.is_trip_member(id));
 
 -- Members get full receipt management for trips they belong to (OR'd with the
 -- existing owner "for all" policy from 0004).
@@ -74,18 +76,25 @@ set search_path = public
 as $$
 declare
   target_trip_id uuid;
+  trip_owner_id uuid;
   current_user_id uuid := auth.uid();
 begin
   if current_user_id is null then
     raise exception 'Not authenticated';
   end if;
 
-  select id into target_trip_id
+  select id, user_id into target_trip_id, trip_owner_id
   from public.trips
   where invite_token = token_input;
 
   if target_trip_id is null then
     raise exception 'Invalid invite token';
+  end if;
+
+  -- The owner already has full access; don't pollute trip_members with a
+  -- self-membership row. Just hand back the trip id so the UI routes there.
+  if trip_owner_id = current_user_id then
+    return target_trip_id;
   end if;
 
   insert into public.trip_members (trip_id, user_id)

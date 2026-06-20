@@ -67,6 +67,18 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 - `app/trips/[id]/page.tsx` (drop owner-only filter — member access)
 - `app/dashboard/page.tsx` (drop owner-only filter — show member trips)
 
+## Review Findings
+
+_From `bmad-code-review` (adversarial; security-focused) on `main...epic-11`, 2026-06-20._
+
+- [x] [Review][Patch] Member trip-UPDATE = ownership hijack / token tamper [supabase/migrations/0007_trip_members.sql] — **FIXED (HIGH):** RLS can't restrict columns, so the "Members can update trips" policy let a member set `user_id` (become owner) or `invite_token` (bypass the owner-only RPCs). Removed the member UPDATE policy entirely — members edit `receipts` (their actual editing surface), trip metadata/ownership stay owner-only.
+- [x] [Review][Patch] Open redirect via backslash [utils/auth/redirect.ts, app/page.tsx, context/AuthContext.tsx, app/auth/callback] — **FIXED (MEDIUM):** the `//`-only guard missed `/\evil.com` (browsers normalize `\`→`/`). Centralized `safeInternalPath` rejects `//`, absolute URLs, and any backslash; covered by `tests/unit/redirect.test.ts`.
+- [x] [Review][Patch] OAuth dropped the invite `?redirect` [context/AuthContext.tsx, app/auth/callback/page.tsx] — **FIXED (MEDIUM):** `signInWithGoogle` now carries a safe `redirect` into the callback URL and the callback honors it, so Google users who follow an invite link actually land on it and auto-join (AC3/AC4) instead of the dashboard.
+- [x] [Review][Patch] Owner self-redeem polluted membership [supabase/migrations/0007_trip_members.sql] — **FIXED:** `redeem_invite_token` returns early for the trip owner (already has access) instead of inserting a self-membership row.
+- [x] [Review][Patch] Login stranded already-authenticated users on `/?redirect=…` [app/page.tsx] — **FIXED:** an effect now redirects a signed-in visitor to the safe target (also resolves the Epic 9 deferred "redirect authed users" item).
+
+**Dismissed:** "disable doesn't remove existing members" (AC5 invalidates the *link* / future joins — member removal is a separate, out-of-scope feature); StrictMode double-redeem (RPC is idempotent via `on conflict do nothing`); clipboard unavailable on HTTP (already caught with a manual-copy message + selectable field); non-uuid token (RPC cast error → handled error page); whitelist-gates-"anyone" (consistent with the brief's "registered users"; Share copy reworded).
+
 ## Change Log
 
 | Date | Version | Description | Author |
