@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
+import { ProfileSelector } from "@/components/feature/ProfileSelector";
 
 type Trip = {
   id: string;
@@ -81,6 +82,10 @@ export default function DashboardPage() {
         >
           + Create New Trip
         </Link>
+      </div>
+
+      <div className="mb-6">
+        <ProfileSelector />
       </div>
 
       {error ? (
