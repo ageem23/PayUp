@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LineItem } from "@/components/feature/MatrixStateWrapper";
 import { MatrixRowItem } from "@/components/feature/MatrixRowItem";
 import { SyncStatusBar, type SaveState } from "@/components/feature/SyncStatusBar";
 import { type ReceiptSplitAllocation } from "@/utils/db/matrixPatch";
 
 export type SplitAllocation = ReceiptSplitAllocation;
+
+// How long the cell-update highlight stays before fading out (matches the
+// `flash-cell` animation duration in tailwind.config.ts).
+const FLASH_MS = 2000;
+
+const flashKey = (itemId: string, participant: string) =>
+  `${itemId}::${participant}`;
 
 type Props = {
   items: LineItem[];
@@ -27,6 +34,47 @@ export function ReceiptMatrix({
 }: Props) {
   const [hoveredParticipant, setHoveredParticipant] = useState<string | null>(
     null,
+  );
+
+  // Cells that recently changed, briefly highlighted (Story 10.2). Mapped to a
+  // monotonic "flash version" so a re-toggle within the window restarts the
+  // animation (the version is the React key of the overlay). One timer per cell
+  // (in a ref Map) so re-toggling resets that cell's 2s window instead of an
+  // earlier timer clearing it early.
+  const [flashing, setFlashing] = useState<Map<string, number>>(() => new Map());
+  const flashTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
+  const flashVersionRef = useRef(0);
+
+  // Clear any outstanding flash timers on unmount.
+  useEffect(() => {
+    const timers = flashTimers.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
+
+  const handleToggle = useCallback(
+    (itemId: string, participant: string, checked: boolean) => {
+      const key = flashKey(itemId, participant);
+      const existing = flashTimers.current.get(key);
+      if (existing) clearTimeout(existing); // reset this cell's window
+      const version = ++flashVersionRef.current;
+      setFlashing((prev) => new Map(prev).set(key, version));
+      const timer = setTimeout(() => {
+        flashTimers.current.delete(key);
+        setFlashing((prev) => {
+          const next = new Map(prev);
+          next.delete(key);
+          return next;
+        });
+      }, FLASH_MS);
+      flashTimers.current.set(key, timer);
+      onToggle(itemId, participant, checked);
+    },
+    [onToggle],
   );
 
   const isAssigned = (itemId: string, participant: string): boolean =>
@@ -71,8 +119,11 @@ export function ReceiptMatrix({
               item={item}
               participants={participants}
               isAssigned={(participant) => isAssigned(item.id, participant)}
+              flashVersion={(participant) =>
+                flashing.get(flashKey(item.id, participant))
+              }
               onToggle={(participant, checked) =>
-                onToggle(item.id, participant, checked)
+                handleToggle(item.id, participant, checked)
               }
               onHoverParticipant={setHoveredParticipant}
             />
