@@ -77,7 +77,9 @@ export function ReceiptUploadZone({ onUploaded }: Props) {
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed p-8 text-center text-sm ${
-          dragging ? "border-foreground bg-neutral-50" : "border-neutral-300"
+          dragging
+            ? "border-foreground bg-neutral-50 dark:bg-neutral-900"
+            : "border-neutral-300 dark:border-neutral-700"
         }`}
       >
         <span className="font-medium">

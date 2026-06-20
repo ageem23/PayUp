@@ -25,7 +25,7 @@ export function MatrixRowItem({
   onHoverParticipant,
 }: Props) {
   return (
-    <tr className="border-b border-neutral-200 hover:bg-neutral-50">
+    <tr className="border-b border-neutral-200 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900">
       <td className="px-3 py-2">{item.name}</td>
       <td className="px-3 py-2 text-right">{formatPrice(item.price)}</td>
       {participants.map((participant) => (

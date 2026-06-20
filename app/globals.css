@@ -6,3 +6,14 @@
   --background: #ffffff;
   --foreground: #171717;
 }
+
+/* Dark theme (Epic 9, Story 9.1): toggled by the `dark` class on <html>
+   (Tailwind `darkMode: "class"`). Swapping the CSS variables flips every
+   `bg-background`/`text-foreground` surface — including the inverted
+   `bg-foreground`/`text-background` buttons — without touching components.
+   `color-scheme` makes native controls (scrollbars, form fields) match. */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  color-scheme: dark;
+}
