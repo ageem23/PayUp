@@ -6,6 +6,18 @@ import { useAuth, NOT_AUTHORIZED_MESSAGE } from "@/context/AuthContext";
 
 type Mode = "login" | "register";
 
+// Where to go after login: an internal `?redirect` path (e.g. an invite link
+// the user was sent to), else the dashboard. Only same-origin absolute paths are
+// allowed — rejects `//host` and absolute URLs to prevent open redirects.
+function postLoginTarget(): string {
+  if (typeof window === "undefined") return "/dashboard";
+  const redirect = new URLSearchParams(window.location.search).get("redirect");
+  if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
+    return redirect;
+  }
+  return "/dashboard";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { signIn, signUp, signInWithGoogle } = useAuth();
@@ -48,7 +60,7 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-    router.push("/dashboard");
+    router.push(postLoginTarget());
   };
 
   return (
