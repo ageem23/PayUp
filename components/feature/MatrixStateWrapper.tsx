@@ -85,7 +85,7 @@ export function MatrixStateWrapper({
         {[0, 1, 2].map((row) => (
           <div
             key={row}
-            className="h-10 animate-pulse rounded bg-neutral-200"
+            className="h-10 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800"
           />
         ))}
       </div>

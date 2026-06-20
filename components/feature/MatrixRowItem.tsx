@@ -1,6 +1,7 @@
 "use client";
 
 import type { LineItem } from "@/components/feature/MatrixStateWrapper";
+import { useAccentColor } from "@/context/AccentColorContext";
 
 // Guards malformed jsonb prices from crashing toFixed (mirrors the matrix page).
 export function formatPrice(price: unknown): string {
@@ -24,8 +25,10 @@ export function MatrixRowItem({
   onToggle,
   onHoverParticipant,
 }: Props) {
+  // The local user's chosen accent tints the checks they toggle (Story 9.2).
+  const { accentClassName } = useAccentColor();
   return (
-    <tr className="border-b border-neutral-200 hover:bg-neutral-50">
+    <tr className="border-b border-neutral-200 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900">
       <td className="px-3 py-2">{item.name}</td>
       <td className="px-3 py-2 text-right">{formatPrice(item.price)}</td>
       {participants.map((participant) => (
@@ -40,7 +43,7 @@ export function MatrixRowItem({
             checked={isAssigned(participant)}
             onChange={(event) => onToggle(participant, event.target.checked)}
             aria-label={`Assign ${participant} to ${item.name}`}
-            className="h-5 w-5 cursor-pointer accent-foreground"
+            className={`h-5 w-5 cursor-pointer ${accentClassName}`}
           />
         </td>
       ))}

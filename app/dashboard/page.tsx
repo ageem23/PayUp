@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
+import { ProfileSelector } from "@/components/feature/ProfileSelector";
 
 type Trip = {
   id: string;
@@ -83,6 +84,10 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      <div className="mb-6">
+        <ProfileSelector />
+      </div>
+
       {error ? (
         <p role="alert" className="text-sm text-red-600">
           {error}
@@ -113,8 +118,8 @@ export default function DashboardPage() {
                 <span
                   className={`mt-auto inline-block w-fit rounded-full px-2 py-0.5 text-xs ${
                     trip.is_settled
-                      ? "bg-green-100 text-green-800"
-                      : "bg-amber-100 text-amber-800"
+                      ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
+                      : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
                   }`}
                 >
                   {trip.is_settled ? "Settled" : "Active"}

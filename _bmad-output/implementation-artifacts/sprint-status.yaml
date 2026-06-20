@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-17
-last_updated: 2026-06-19
+last_updated: 2026-06-20
 project: PayUp
 project_key: NOKEY
 tracking_system: file-system
@@ -95,9 +95,9 @@ development_status:
   epic-8-retrospective: optional
 
   # Epic 9: Profiles, Preferences & Local Workspace Customization
-  epic-9: backlog
-  9-1-dark-mode: backlog
-  9-2-color-profiles: backlog
+  epic-9: done
+  9-1-dark-mode: done
+  9-2-color-profiles: done
   epic-9-retrospective: optional
 
   # Epic 10: Activity Auditing Timeline Logging
