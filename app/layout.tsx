@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { AccentColorProvider } from "@/context/AccentColorContext";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import "./globals.css";
 
@@ -29,8 +30,10 @@ export default function RootLayout({
       </head>
       <body className="bg-background text-foreground antialiased">
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
-          <ThemeToggle />
+          <AccentColorProvider>
+            <AuthProvider>{children}</AuthProvider>
+            <ThemeToggle />
+          </AccentColorProvider>
         </ThemeProvider>
       </body>
     </html>

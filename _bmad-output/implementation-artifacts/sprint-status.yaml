@@ -97,7 +97,7 @@ development_status:
   # Epic 9: Profiles, Preferences & Local Workspace Customization
   epic-9: in-progress
   9-1-dark-mode: done
-  9-2-color-profiles: backlog
+  9-2-color-profiles: done
   epic-9-retrospective: optional
 
   # Epic 10: Activity Auditing Timeline Logging
