@@ -101,7 +101,7 @@ development_status:
   epic-9-retrospective: optional
 
   # Epic 10: Activity Auditing Timeline Logging
-  epic-10: in-progress
+  epic-10: done
   10-1-activity-log: done
   10-2-flash-highlights: done
   epic-10-retrospective: optional
