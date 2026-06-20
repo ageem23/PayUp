@@ -64,6 +64,15 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 **Modified:**
 - `components/feature/ReceiptSplitView.tsx` (audit state + logging in toggle/fee handlers; render timeline)
 
+## Review Findings
+
+_From `bmad-code-review` (adversarial) on `main...epic-10`, 2026-06-20._
+
+- [x] [Review][Patch] Unbounded log growth [components/feature/ReceiptSplitView.tsx] — **FIXED:** cap `auditLog` to the latest `AUDIT_LOG_LIMIT` (100) so a long session can't grow state/DOM without bound; the timeline `<div>` also gets `max-h-64 overflow-y-auto`.
+- [x] [Review][Patch] Empty item name / actor render as blank [components/feature/ReceiptSplitView.tsx] — **FIXED:** `|| "item"` (was `?? `, which missed `""`) for item name, and `email?.split("@")[0] || "You"` so a malformed/empty email doesn't render a blank actor.
+
+**Dismissed:** optimistic logging before save resolves (consistent with the split autosave; the log is a UX trail, not a persistence record); in-memory log resets on reload while splits persist (intentional per the epic architecture); per-instance audit ids (single `ReceiptSplitView` is ever mounted); actor "You"→email if auth resolves mid-session (entries are stamped at action time); no-op toggle logging (the checkbox UI can't produce a no-op toggle).
+
 ## Change Log
 
 | Date | Version | Description | Author |

@@ -27,7 +27,7 @@ export function ActivityTimeline({ entries }: Props) {
         ) : null}
       </summary>
 
-      <div className="border-t border-neutral-200 px-4 py-3 dark:border-neutral-800">
+      <div className="max-h-64 overflow-y-auto border-t border-neutral-200 px-4 py-3 dark:border-neutral-800">
         {entries.length === 0 ? (
           <p className="text-sm text-neutral-500">No activity yet.</p>
         ) : (

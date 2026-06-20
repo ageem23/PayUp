@@ -57,6 +57,14 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 - `components/feature/ReceiptMatrix.tsx` (flash state + timers, wraps onToggle)
 - `components/feature/MatrixRowItem.tsx` (isFlashing prop; animate the cell)
 
+## Review Findings
+
+_From `bmad-code-review` (adversarial) on `main...epic-10`, 2026-06-20._
+
+- [x] [Review][Patch] Flash timer mismanagement [components/feature/ReceiptMatrix.tsx, MatrixRowItem.tsx] — **FIXED (MEDIUM, all 3 layers):** re-toggling a cell within 2 s didn't re-flash (key already in the Set → no class change), and an earlier timer cleared the highlight prematurely. Rewrote to a `Map<key, version>` + one timer per cell (resets that cell's window) and a **version-keyed overlay `<span>`** that remounts to restart the animation. The overlay is `pointer-events-none` and behind the checkbox, so focus/cursor are untouched (AC4), and it no longer masks the row hover background.
+
+**Dismissed:** dark-mode flash contrast (soft yellow is a light color, still visible on the dark row bg); `forwards` hover-mask (resolved by the overlay approach); participant-rename flash-key drift (the whole app keys participants by name — no rename feature).
+
 ## Change Log
 
 | Date | Version | Description | Author |

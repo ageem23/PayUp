@@ -36,10 +36,16 @@ export function ReceiptMatrix({
     null,
   );
 
-  // Cells that recently changed, briefly highlighted (Story 10.2). Keyed by
-  // item+participant; each key clears itself after the flash window.
-  const [flashing, setFlashing] = useState<Set<string>>(() => new Set());
-  const flashTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  // Cells that recently changed, briefly highlighted (Story 10.2). Mapped to a
+  // monotonic "flash version" so a re-toggle within the window restarts the
+  // animation (the version is the React key of the overlay). One timer per cell
+  // (in a ref Map) so re-toggling resets that cell's 2s window instead of an
+  // earlier timer clearing it early.
+  const [flashing, setFlashing] = useState<Map<string, number>>(() => new Map());
+  const flashTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
+  const flashVersionRef = useRef(0);
 
   // Clear any outstanding flash timers on unmount.
   useEffect(() => {
@@ -53,16 +59,19 @@ export function ReceiptMatrix({
   const handleToggle = useCallback(
     (itemId: string, participant: string, checked: boolean) => {
       const key = flashKey(itemId, participant);
-      setFlashing((prev) => new Set(prev).add(key));
+      const existing = flashTimers.current.get(key);
+      if (existing) clearTimeout(existing); // reset this cell's window
+      const version = ++flashVersionRef.current;
+      setFlashing((prev) => new Map(prev).set(key, version));
       const timer = setTimeout(() => {
-        flashTimers.current.delete(timer);
+        flashTimers.current.delete(key);
         setFlashing((prev) => {
-          const next = new Set(prev);
+          const next = new Map(prev);
           next.delete(key);
           return next;
         });
       }, FLASH_MS);
-      flashTimers.current.add(timer);
+      flashTimers.current.set(key, timer);
       onToggle(itemId, participant, checked);
     },
     [onToggle],
@@ -110,8 +119,8 @@ export function ReceiptMatrix({
               item={item}
               participants={participants}
               isAssigned={(participant) => isAssigned(item.id, participant)}
-              isFlashing={(participant) =>
-                flashing.has(flashKey(item.id, participant))
+              flashVersion={(participant) =>
+                flashing.get(flashKey(item.id, participant))
               }
               onToggle={(participant, checked) =>
                 handleToggle(item.id, participant, checked)

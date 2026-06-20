@@ -21,6 +21,10 @@ const FEE_SAVE_DEBOUNCE_MS = 600;
 
 const money = (value: number): string => `$${value.toFixed(2)}`;
 
+// Cap the in-memory activity log so a long session can't grow it (and the DOM)
+// without bound. Older entries fall off the bottom.
+const AUDIT_LOG_LIMIT = 100;
+
 // Pure: returns a new split_among array with only the matching item_id node
 // changed; every other line is preserved (split_among is one JSONB column).
 function applyToggle(
@@ -63,10 +67,11 @@ export function ReceiptSplitView({
   initialTip,
 }: Props) {
   const { user } = useAuth();
-  // The local actor for audit entries — email local-part, or "You" if unknown.
+  // The local actor for audit entries — email local-part, or "You" if unknown
+  // (guards a missing or malformed email that would split to an empty string).
   const actorName = useMemo(() => {
     const email = user?.email;
-    return email ? email.split("@")[0] : "You";
+    return email?.split("@")[0] || "You";
   }, [user]);
 
   const [tax, setTax] = useState<number>(initialTax);
@@ -83,15 +88,17 @@ export function ReceiptSplitView({
   const auditIdRef = useRef(0);
   const logActivity = useCallback(
     (actionDescription: string) => {
-      setAuditLog((prev) => [
-        {
-          id: String(++auditIdRef.current),
-          timestamp: new Date().toISOString(),
-          actorName,
-          actionDescription,
-        },
-        ...prev,
-      ]);
+      setAuditLog((prev) =>
+        [
+          {
+            id: String(++auditIdRef.current),
+            timestamp: new Date().toISOString(),
+            actorName,
+            actionDescription,
+          },
+          ...prev,
+        ].slice(0, AUDIT_LOG_LIMIT),
+      );
     },
     [actorName],
   );
@@ -180,7 +187,7 @@ export function ReceiptSplitView({
     const seq = ++splitSeq.current;
     setSplits(next);
     setSplitSaveState("saving");
-    const itemName = items.find((item) => item.id === itemId)?.name ?? "item";
+    const itemName = items.find((item) => item.id === itemId)?.name || "item";
     logActivity(
       checked
         ? `assigned '${itemName}' to ${participant}`
