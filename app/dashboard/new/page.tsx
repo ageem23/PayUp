@@ -139,7 +139,7 @@ export default function NewTripPage() {
                       type="button"
                       onClick={() => removeParticipant(name)}
                       aria-label={`Remove ${name}`}
-                      className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-xs leading-none"
+                      className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-xs leading-none dark:bg-neutral-800"
                     >
                       ×
                     </button>

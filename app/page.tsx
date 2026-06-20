@@ -83,7 +83,7 @@ export default function LoginPage() {
           type="button"
           onClick={handleGoogle}
           disabled={loading}
-          className="mb-4 flex w-full items-center justify-center gap-2 rounded border border-neutral-300 px-4 py-2 font-medium hover:bg-neutral-50 disabled:opacity-50"
+          className="mb-4 flex w-full items-center justify-center gap-2 rounded border border-neutral-300 px-4 py-2 font-medium hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -107,9 +107,9 @@ export default function LoginPage() {
         </button>
 
         <div className="mb-4 flex items-center gap-3 text-xs text-neutral-400">
-          <span className="h-px flex-1 bg-neutral-200" />
+          <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
           or
-          <span className="h-px flex-1 bg-neutral-200" />
+          <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
