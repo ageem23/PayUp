@@ -107,8 +107,8 @@ development_status:
   epic-10-retrospective: optional
 
   # Epic 11: Magic Link Invitations
-  epic-11: backlog
-  11-1-generate-manage-invite-links: backlog
+  epic-11: in-progress
+  11-1-generate-manage-invite-links: done
   11-2-redeem-magic-invite-link: backlog
   epic-11-retrospective: optional
 

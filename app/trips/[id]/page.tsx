@@ -8,6 +8,7 @@ import { supabase } from "@/utils/supabase/client";
 import { ReceiptUploadZone } from "@/components/feature/ReceiptUploadZone";
 import { ReceiptStagingModal } from "@/components/feature/ReceiptStagingModal";
 import { SettleUpLedger } from "@/components/feature/SettleUpLedger";
+import { InviteLinkManager } from "@/components/feature/InviteLinkManager";
 import {
   compileLedger,
   type LedgerReceipt,
@@ -18,6 +19,8 @@ type Trip = {
   id: string;
   name: string;
   participants: string[] | null;
+  user_id: string | null;
+  invite_token: string | null;
 };
 
 export default function TripHubPage() {
@@ -43,7 +46,7 @@ export default function TripHubPage() {
         const [tripRes, receiptsRes] = await Promise.all([
           supabase
             .from("trips")
-            .select("id,name,participants")
+            .select("id,name,participants,user_id,invite_token")
             .eq("id", tripId)
             .eq("user_id", userId)
             .maybeSingle(),
@@ -82,6 +85,8 @@ export default function TripHubPage() {
     },
     [tripId],
   );
+
+  const isOwner = !!user && !!trip && trip.user_id === user.id;
 
   // Recompute the minimal settle-up transfers whenever the trip's receipts or
   // participant list change. `balanced` is false if the ledger doesn't reconcile
@@ -136,6 +141,12 @@ export default function TripHubPage() {
         <h2 className="text-lg font-medium">Add a receipt</h2>
         <ReceiptUploadZone onUploaded={(url) => setStagingUrl(url)} />
       </section>
+
+      {isOwner ? (
+        <div className="mt-6">
+          <InviteLinkManager tripId={trip.id} initialToken={trip.invite_token} />
+        </div>
+      ) : null}
 
       <SettleUpLedger transfers={transfers} error={receiptsError || !balanced} />
 
