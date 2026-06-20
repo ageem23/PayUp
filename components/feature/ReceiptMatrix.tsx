@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LineItem } from "@/components/feature/MatrixStateWrapper";
 import { MatrixRowItem } from "@/components/feature/MatrixRowItem";
 import { SyncStatusBar, type SaveState } from "@/components/feature/SyncStatusBar";
 import { type ReceiptSplitAllocation } from "@/utils/db/matrixPatch";
 
 export type SplitAllocation = ReceiptSplitAllocation;
+
+// How long the cell-update highlight stays before fading out (matches the
+// `flash-cell` animation duration in tailwind.config.ts).
+const FLASH_MS = 2000;
+
+const flashKey = (itemId: string, participant: string) =>
+  `${itemId}::${participant}`;
 
 type Props = {
   items: LineItem[];
@@ -27,6 +34,38 @@ export function ReceiptMatrix({
 }: Props) {
   const [hoveredParticipant, setHoveredParticipant] = useState<string | null>(
     null,
+  );
+
+  // Cells that recently changed, briefly highlighted (Story 10.2). Keyed by
+  // item+participant; each key clears itself after the flash window.
+  const [flashing, setFlashing] = useState<Set<string>>(() => new Set());
+  const flashTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  // Clear any outstanding flash timers on unmount.
+  useEffect(() => {
+    const timers = flashTimers.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
+
+  const handleToggle = useCallback(
+    (itemId: string, participant: string, checked: boolean) => {
+      const key = flashKey(itemId, participant);
+      setFlashing((prev) => new Set(prev).add(key));
+      const timer = setTimeout(() => {
+        flashTimers.current.delete(timer);
+        setFlashing((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+      }, FLASH_MS);
+      flashTimers.current.add(timer);
+      onToggle(itemId, participant, checked);
+    },
+    [onToggle],
   );
 
   const isAssigned = (itemId: string, participant: string): boolean =>
@@ -71,8 +110,11 @@ export function ReceiptMatrix({
               item={item}
               participants={participants}
               isAssigned={(participant) => isAssigned(item.id, participant)}
+              isFlashing={(participant) =>
+                flashing.has(flashKey(item.id, participant))
+              }
               onToggle={(participant, checked) =>
-                onToggle(item.id, participant, checked)
+                handleToggle(item.id, participant, checked)
               }
               onHoverParticipant={setHoveredParticipant}
             />
