@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -51,10 +52,13 @@ export function AccentColorProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const value = useMemo(
+    () => ({ accent, accentClassName: accentClass(accent), setAccent }),
+    [accent, setAccent],
+  );
+
   return (
-    <AccentColorContext.Provider
-      value={{ accent, accentClassName: accentClass(accent), setAccent }}
-    >
+    <AccentColorContext.Provider value={value}>
       {children}
     </AccentColorContext.Provider>
   );

@@ -16,16 +16,19 @@ export type AccentToken = (typeof ACCENT_COLORS)[number]["token"];
 
 export const DEFAULT_ACCENT: AccentToken = "indigo";
 
-const BY_TOKEN: Record<string, (typeof ACCENT_COLORS)[number]> = Object.fromEntries(
+const BY_TOKEN = Object.fromEntries(
   ACCENT_COLORS.map((c) => [c.token, c]),
-);
+) as Record<AccentToken, (typeof ACCENT_COLORS)[number]>;
 
-/** Validates an arbitrary string against the allow-list. */
+/** Validates an arbitrary string against the allow-list. Uses own-key checks so
+ *  inherited keys like "toString"/"constructor" can't pass. */
 export function isAccentToken(value: unknown): value is AccentToken {
-  return typeof value === "string" && value in BY_TOKEN;
+  return typeof value === "string" && Object.hasOwn(BY_TOKEN, value);
 }
 
 /** The `accent-*` checkbox class for a token (falls back to the default). */
 export function accentClass(token: AccentToken): string {
-  return (BY_TOKEN[token] ?? BY_TOKEN[DEFAULT_ACCENT]).accent;
+  return Object.hasOwn(BY_TOKEN, token)
+    ? BY_TOKEN[token].accent
+    : BY_TOKEN[DEFAULT_ACCENT].accent;
 }
