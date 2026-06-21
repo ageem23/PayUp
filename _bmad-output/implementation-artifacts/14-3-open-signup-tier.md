@@ -1,6 +1,6 @@
 # Story 14.3: Open Signup — Whitelist Becomes a Tier, Not an Auth Wall
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -52,8 +52,27 @@ so that I can join a friend's trip and split a bill without needing to be pre-ap
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- **AuthContext**: `applySession` now accepts any session (no whitelist sign-out); `signIn`/`signUp` drop the whitelist rejection/pre-check; `signInWithGoogle` unchanged. Removed the `authNotice` state + `NOT_AUTHORIZED_MESSAGE` export (no longer any rejection to signal).
+- **OAuth callback**: dropped the `authNotice → /unauthorized` branch; routes signed-in users to redirect/dashboard, else `/`.
+- **Login page**: removed the `NOT_AUTHORIZED_MESSAGE → /unauthorized` routing; auth errors show inline.
+- **`/unauthorized` retired** (route deleted) — nothing routes there anymore (AC5).
+- **`utils/auth/whitelist.ts` removed** (+ its test): the client no longer consults the whitelist at all; tier is resolved server-side via `is_unlimited_user()` and surfaced for UI through `receipt_quota_status()` (Story 14.4). This is the "no longer an auth gate" end state from the spec, taken to its clean conclusion (no dead code).
+- **Sequencing satisfied (AC6)**: migrations `0009`/`0010` (the meter) are already in this epic branch ahead of this story, so a non-whitelisted user is metered the instant the gate opens.
+- Whitelisted users' auth experience unchanged (AC4) — they authenticate as before and remain unlimited via the server-side tier check.
+- `npm run lint` + `npm run build` + `npm test` clean (whitelist suite removed → 49 tests).
+
 ### File List
+
+**Modified:**
+- `context/AuthContext.tsx`
+- `app/auth/callback/page.tsx`
+- `app/page.tsx`
+
+**Removed:**
+- `app/unauthorized/page.tsx`
+- `utils/auth/whitelist.ts`
+- `tests/integration/auth/whitelist.test.ts`
