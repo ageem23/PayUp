@@ -18,10 +18,15 @@ export async function requestUnlimitedAccess(): Promise<AccessRequestResult> {
   if (!user) {
     return { ok: false, error: "You must be signed in to request access." };
   }
+  // An access request with a blank email is useless to the admin granting it
+  // (they whitelist by email). Refuse rather than record an unactionable row.
+  if (!user.email) {
+    return { ok: false, error: "Your account has no email address on file." };
+  }
 
   const { error } = await supabase.from("access_requests").insert({
     user_id: user.id,
-    email: user.email ?? "",
+    email: user.email,
   });
 
   if (error) {

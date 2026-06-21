@@ -25,7 +25,15 @@ alter table public.access_requests enable row level security;
 -- service role / Supabase dashboard (no admin UI this epic).
 drop policy if exists "Users insert their own request" on public.access_requests;
 create policy "Users insert their own request" on public.access_requests
-  for insert with check (auth.uid() = user_id);
+  -- Constrain inserts to a real pending request from the authenticated identity:
+  -- own user_id, own email, and status must start 'pending' (the dedup index and
+  -- the admin workflow depend on these — a client can't seed arbitrary lifecycle
+  -- state or someone else's email).
+  for insert with check (
+    auth.uid() = user_id
+    and email = auth.email()
+    and status = 'pending'
+  );
 
 drop policy if exists "Users read their own request" on public.access_requests;
 create policy "Users read their own request" on public.access_requests

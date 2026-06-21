@@ -20,12 +20,18 @@ export function AccessRequestModal({ onClose }: Props) {
   const handleSubmit = async () => {
     setSubmitting(true);
     setError(null);
-    const result = await requestUnlimitedAccess();
-    setSubmitting(false);
-    if (result.ok) {
-      setDone(true);
-    } else {
-      setError(result.error);
+    try {
+      const result = await requestUnlimitedAccess();
+      if (result.ok) {
+        setDone(true);
+      } else {
+        setError(result.error);
+      }
+    } catch {
+      // An unexpected throw (e.g. network) must still clear the loading state.
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 

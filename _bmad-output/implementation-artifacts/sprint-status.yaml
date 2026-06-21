@@ -130,7 +130,7 @@ development_status:
   epic-13-retrospective: optional
 
   # Epic 14: Open Access & the Metered Free Tier
-  epic-14: in-progress
+  epic-14: done
   14-1-receipt-created-by: done
   14-2-weekly-receipt-quota: done
   14-3-open-signup-tier: done

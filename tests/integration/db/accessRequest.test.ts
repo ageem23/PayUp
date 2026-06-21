@@ -56,4 +56,12 @@ describe("requestUnlimitedAccess", () => {
     expect(result.ok).toBe(false);
     expect(mockInsert).not.toHaveBeenCalled();
   });
+
+  it("refuses to insert a request for a user with no email", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "u1", email: null } } });
+
+    const result = await requestUnlimitedAccess();
+    expect(result.ok).toBe(false);
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
 });

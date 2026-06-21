@@ -48,8 +48,18 @@ declare
   v_uid uuid := auth.uid();
   v_count int;
 begin
-  -- (1) authoritative authorship stamp (anti-spoof: overrides any client value)
+  -- (0) reject unauthenticated inserts — no actor to attribute or meter, and an
+  -- unstamped row (created_by null) would never count toward anyone's quota.
+  -- Fail closed.
+  if v_uid is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  -- (1) authoritative stamps (anti-spoof: override any client-supplied values).
+  -- created_at is forced to now() so a caller can't backdate a row to slip out
+  -- of the rolling 7-day window and evade the cap.
   new.created_by := v_uid;
+  new.created_at := now();
 
   -- (2) unlimited users bypass the meter entirely
   if public.is_unlimited_user() then

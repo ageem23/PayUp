@@ -44,10 +44,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(nextSession?.user ?? null);
     };
 
-    supabase.auth.getSession().then(({ data }) => {
-      applySession(data.session);
-      if (active) setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => applySession(data.session))
+      // Settle loading even if getSession() rejects, or auth stays stuck loading.
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
     const {
       data: { subscription },
