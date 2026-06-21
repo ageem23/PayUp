@@ -1,6 +1,6 @@
 # Story 14.2: Server-Enforced Weekly Receipt Quota (Free Tier)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -60,8 +60,17 @@ so that the cap cannot be bypassed by calling the API directly.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- Migration-only (no app change). `0010` adds `is_unlimited_user()` (SECURITY DEFINER, empty search_path, email-normalized), the `idx_allowed_users_email_lower` index, the `enforce_receipt_quota()` BEFORE INSERT trigger (stamp → unlimited-bypass → per-user advisory lock → 7-day count → raise `RECEIPT_QUOTA_EXCEEDED` at ≥3), and the `receipt_quota_status()` read helper.
+- Cap `3` is hardcoded in both `enforce_receipt_quota` and `receipt_quota_status`; the migration header flags they must stay in sync.
+- Error contract `RECEIPT_QUOTA_EXCEEDED` is the literal Story 14.4 maps — do not change without updating 14.4.
+- **Manual Supabase apply** required for `0010`. Dormant until 14.3 opens the gate; provable now against a non-whitelisted test account (1st/2nd/3rd succeed, 4th blocked — note the cap is ≥3 existing → the 4th insert is the one rejected).
+- `EXECUTE` granted to `authenticated` only on both helper functions.
+
 ### File List
+
+**Added:**
+- `supabase/migrations/0010_tier_and_quota.sql`
