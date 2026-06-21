@@ -131,7 +131,7 @@ development_status:
 
   # Epic 14: Open Access & the Metered Free Tier
   epic-14: in-progress
-  14-1-receipt-created-by: ready-for-dev
+  14-1-receipt-created-by: done
   14-2-weekly-receipt-quota: ready-for-dev
   14-3-open-signup-tier: ready-for-dev
   14-4-quota-visibility-block: ready-for-dev
