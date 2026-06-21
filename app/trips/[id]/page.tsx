@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import { ReceiptUploadZone } from "@/components/feature/ReceiptUploadZone";
 import { ReceiptStagingModal } from "@/components/feature/ReceiptStagingModal";
+import { ReceiptList, type ReceiptListItem } from "@/components/feature/ReceiptList";
 import { SettleUpLedger } from "@/components/feature/SettleUpLedger";
 import { InviteLinkManager } from "@/components/feature/InviteLinkManager";
 import {
@@ -22,6 +23,11 @@ type Trip = {
   user_id: string | null;
 };
 
+// The trip page needs both the ledger fields (LedgerReceipt) and the list
+// display fields, so it fetches a superset. compileLedger only reads the
+// LedgerReceipt subset, so the extra columns are harmless to it.
+type TripReceipt = LedgerReceipt & ReceiptListItem;
+
 export default function TripHubPage() {
   const params = useParams<{ id: string }>();
   const tripId = params.id;
@@ -29,7 +35,7 @@ export default function TripHubPage() {
   const { user, loading } = useAuth();
 
   const [trip, setTrip] = useState<Trip | null>(null);
-  const [receipts, setReceipts] = useState<LedgerReceipt[]>([]);
+  const [receipts, setReceipts] = useState<TripReceipt[]>([]);
   const [receiptsError, setReceiptsError] = useState(false);
   const [loadingTrip, setLoadingTrip] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +58,11 @@ export default function TripHubPage() {
             .maybeSingle(),
           supabase
             .from("receipts")
-            .select("paid_by,processed_data,split_among,tax,tip")
-            .eq("trip_id", tripId),
+            .select(
+              "id,name,image_url,created_at,paid_by,processed_data,split_among,tax,tip",
+            )
+            .eq("trip_id", tripId)
+            .order("created_at", { ascending: false }),
         ]);
 
         if (tripRes.error || !tripRes.data) {
@@ -70,7 +79,7 @@ export default function TripHubPage() {
             setReceipts([]);
             setReceiptsError(true);
           } else {
-            setReceipts(receiptsRes.data as LedgerReceipt[]);
+            setReceipts(receiptsRes.data as TripReceipt[]);
             setReceiptsError(false);
           }
         }
@@ -140,6 +149,11 @@ export default function TripHubPage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Add a receipt</h2>
         <ReceiptUploadZone onUploaded={(url) => setStagingUrl(url)} />
+      </section>
+
+      <section className="mt-6 flex flex-col gap-3">
+        <h2 className="text-lg font-medium">Receipts</h2>
+        <ReceiptList tripId={trip.id} receipts={receipts} />
       </section>
 
       {isOwner ? (
