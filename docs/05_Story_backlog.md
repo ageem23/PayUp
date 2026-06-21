@@ -1,6 +1,6 @@
 ---
 
-## 📋 3. Complete Story Backlog (Epics 1 - 13)
+## 📋 3. Complete Story Backlog (Epics 1 - 14)
 
 ### docs/05_Epic_1_to_10_Core_Backlog_Archive.md
 ```markdown
@@ -19,7 +19,11 @@
 *   **Epic 11: Magic Link Invitations**: Owner-generated invite tokens redeemed into `trip_members`, granting whitelisted collaborators full receipt-editing rights under hardened RLS.
 *   **Epic 12: Real-Time Collaboration**: Live cross-client sync of receipt edits via Supabase Realtime (`replica identity full` + publication), scoped to authenticated members.
 *   **Epic 13: Streamline the Receipt Experience**: Mobile camera capture, a trip-level receipt list, delete, OCR auto-population of name/tax/tip with a smart 20% default tip, full line/name editing, and a mobile layout that leads with the assignment matrix. *(backlog)*
+*   **Epic 14: Open Access & the Metered Free Tier**: Convert the whitelist from an auth gate into a usage tier — open signup, server-enforced 3-receipts/rolling-7-day free-tier quota (the sole free-tier limit; trips unrestricted), quota visibility with a limit-reached block, and a request-unlimited-access path. *(backlog)*
 ```
 
 ### Epic 13 detail
 See [docs/prd/epic-13/epic_13_overview.md](docs/prd/epic-13/epic_13_overview.md) for the full Epic 13 story registry and acceptance criteria (Stories 13.1–13.7).
+
+### Epic 14 detail
+See [docs/prd/epic-14/epic_14_overview.md](docs/prd/epic-14/epic_14_overview.md) for the full Epic 14 story registry and acceptance criteria (Stories 14.1–14.5).
