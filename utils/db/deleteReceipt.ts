@@ -13,7 +13,15 @@ export function storagePathFromPublicUrl(imageUrl: string | null): string | null
   const idx = imageUrl.indexOf(marker);
   if (idx === -1) return null;
   const path = imageUrl.slice(idx + marker.length).split("?")[0];
-  return path ? decodeURIComponent(path) : null;
+  if (!path) return null;
+  // decodeURIComponent throws on malformed escapes; since this runs AFTER the
+  // row delete, a throw would break the documented best-effort cleanup. Fall
+  // back to the raw path instead.
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
 }
 
 /**

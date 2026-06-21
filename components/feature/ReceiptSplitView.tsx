@@ -163,15 +163,22 @@ export function ReceiptSplitView({
     [receiptId],
   );
 
+  const cancelPendingItemsSave = useCallback(() => {
+    if (itemsTimerRef.current) {
+      clearTimeout(itemsTimerRef.current);
+      itemsTimerRef.current = null;
+    }
+  }, []);
+
   const scheduleItemsSave = useCallback(
     (next: LineItem[]) => {
-      if (itemsTimerRef.current) clearTimeout(itemsTimerRef.current);
+      cancelPendingItemsSave();
       itemsTimerRef.current = setTimeout(() => {
         itemsTimerRef.current = null;
         saveItems(next);
       }, ITEMS_SAVE_DEBOUNCE_MS);
     },
-    [saveItems],
+    [cancelPendingItemsSave, saveItems],
   );
 
   // In-memory activity log for this session (newest first). Not persisted.
@@ -292,8 +299,10 @@ export function ReceiptSplitView({
           };
 
           // Apply remote line-item edits (Story 13.6) — ignore the echo of our
-          // own write via the order-insensitive compare.
-          if (Array.isArray(row.processed_data)) {
+          // own write via the order-insensitive compare. Skipped while a local
+          // item edit is mid-debounce, so an inbound echo can't overwrite the
+          // value the user is still typing (mirrors the fee guard below).
+          if (itemsTimerRef.current === null && Array.isArray(row.processed_data)) {
             const incomingItems = row.processed_data;
             if (!sameItems(lineItemsRef.current, incomingItems)) {
               setLineItemsSynced(incomingItems);
@@ -399,9 +408,12 @@ export function ReceiptSplitView({
       { id: crypto.randomUUID(), name: "", price: 0 },
     ];
     setLineItemsSynced(next);
+    // Drop any pending debounced edit — it holds a stale array that would land
+    // after this immediate write and undo the add.
+    cancelPendingItemsSave();
     saveItems(next); // structural change — persist immediately, no debounce
     logActivity("added a line item");
-  }, [setLineItemsSynced, saveItems, logActivity]);
+  }, [setLineItemsSynced, cancelPendingItemsSave, saveItems, logActivity]);
 
   const handleDeleteItem = useCallback(
     (itemId: string) => {
@@ -410,6 +422,8 @@ export function ReceiptSplitView({
         (item) => item.id !== itemId,
       );
       setLineItemsSynced(nextItems);
+      // Drop any pending debounced edit (stale array) before this immediate save.
+      cancelPendingItemsSave();
       saveItems(nextItems);
 
       // Prune the deleted item's split_among node so no orphan assignment is
@@ -433,18 +447,28 @@ export function ReceiptSplitView({
       }
       logActivity(`removed '${removed?.name || "item"}'`);
     },
-    [receiptId, setLineItemsSynced, saveItems, setSplitsSynced, logActivity],
+    [
+      receiptId,
+      setLineItemsSynced,
+      cancelPendingItemsSave,
+      saveItems,
+      setSplitsSynced,
+      logActivity,
+    ],
   );
 
   // Flush a pending debounced item edit on unmount so it isn't lost on navigate.
+  // Queue it on itemsChain so it lands after any in-flight save (preserves order).
   useEffect(() => {
     return () => {
       if (itemsTimerRef.current) {
         clearTimeout(itemsTimerRef.current);
         itemsTimerRef.current = null;
-        void patchReceiptItems(receiptId, lineItemsRef.current).catch(
-          () => undefined,
-        );
+        const pending = lineItemsRef.current;
+        itemsChain.current = itemsChain.current
+          .catch(() => undefined)
+          .then(() => patchReceiptItems(receiptId, pending))
+          .catch(() => undefined);
       }
     };
   }, [receiptId]);

@@ -78,7 +78,7 @@ export function ReceiptList({ tripId, receipts, onDeleted }: Props) {
       {receipts.map((receipt) => (
         <li key={receipt.id} className="flex items-center gap-2">
           <Link
-            href={`/trips/${tripId}/receipts/${receipt.id}`}
+            href={`/trips/${encodeURIComponent(tripId)}/receipts/${encodeURIComponent(receipt.id)}`}
             className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900"
           >
             {receipt.image_url ? (

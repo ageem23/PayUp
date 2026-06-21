@@ -185,22 +185,30 @@ export async function POST(request: Request) {
     );
   }
 
-  let parsed: Record<string, unknown> = {};
+  // A parse failure or a non-object/missing-items response is an OCR failure,
+  // not an empty receipt — return a retryable 502 so the client doesn't treat a
+  // garbled scan as "nothing extracted". An empty `items: []` is still valid.
+  let parsed: Record<string, unknown>;
   try {
     const json: unknown = JSON.parse(responseText);
-    if (typeof json === "object" && json !== null && !Array.isArray(json)) {
-      parsed = json as Record<string, unknown>;
+    if (typeof json !== "object" || json === null || Array.isArray(json)) {
+      throw new Error("OCR response was not a JSON object");
     }
-  } catch {
-    parsed = {};
+    parsed = json as Record<string, unknown>;
+    if (!Array.isArray(parsed.items)) {
+      throw new Error("OCR response did not include an items array");
+    }
+  } catch (error) {
+    console.error("[ocr] Gemini returned invalid JSON:", error);
+    return NextResponse.json(
+      { error: "Receipt scanning failed. Please try again." },
+      { status: 502 },
+    );
   }
 
-  const rawLines: RawLine[] = Array.isArray(parsed.items)
-    ? parsed.items.filter(
-        (entry): entry is RawLine =>
-          typeof entry === "object" && entry !== null,
-      )
-    : [];
+  const rawLines: RawLine[] = (parsed.items as unknown[]).filter(
+    (entry): entry is RawLine => typeof entry === "object" && entry !== null,
+  );
 
   const items: LineItem[] = rawLines.map((line) => ({
     id: crypto.randomUUID(),

@@ -101,14 +101,22 @@ export default function TripHubPage() {
   // after a delete and by the realtime subscription so the list/ledger update
   // without flashing the whole page.
   const refreshReceipts = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("receipts")
-      .select(RECEIPT_SELECT)
-      .eq("trip_id", tripId)
-      .order("created_at", { ascending: false });
-    if (!error && Array.isArray(data)) {
+    try {
+      const { data, error } = await supabase
+        .from("receipts")
+        .select(RECEIPT_SELECT)
+        .eq("trip_id", tripId)
+        .order("created_at", { ascending: false });
+      if (error || !Array.isArray(data)) {
+        // Surface the failure rather than leaving stale/empty receipts that
+        // would misleadingly render as "No receipts yet".
+        setReceiptsError(true);
+        return;
+      }
       setReceipts(data as TripReceipt[]);
       setReceiptsError(false);
+    } catch {
+      setReceiptsError(true);
     }
   }, [tripId]);
 
@@ -196,11 +204,20 @@ export default function TripHubPage() {
 
       <section className="mt-6 flex flex-col gap-3">
         <h2 className="text-lg font-medium">Receipts</h2>
-        <ReceiptList
-          tripId={trip.id}
-          receipts={receipts}
-          onDeleted={() => void refreshReceipts()}
-        />
+        {receiptsError ? (
+          <p
+            role="alert"
+            className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+          >
+            Could not load receipts. Try refreshing the page.
+          </p>
+        ) : (
+          <ReceiptList
+            tripId={trip.id}
+            receipts={receipts}
+            onDeleted={() => void refreshReceipts()}
+          />
+        )}
       </section>
 
       {isOwner ? (

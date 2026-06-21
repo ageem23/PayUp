@@ -145,6 +145,24 @@ describe("POST /api/ocr", () => {
     expect(json.total).toBe(29.69);
   });
 
+  it("returns 502 when the model returns malformed/non-object JSON", async () => {
+    mockGenerateContent.mockResolvedValue({ text: "not json at all" });
+    const res = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(res.status).toBe(502);
+  });
+
+  it("returns 502 when the response has no items array", async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({ merchant: "X", tax: 1 }),
+    });
+    const res = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(res.status).toBe(502);
+  });
+
   it("returns null for missing merchant/tax/tip (so they aren't auto-filled)", async () => {
     mockGenerateContent.mockResolvedValue({
       text: JSON.stringify({

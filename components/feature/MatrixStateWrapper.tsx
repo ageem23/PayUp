@@ -49,6 +49,14 @@ export function MatrixStateWrapper({
   const [ocrError, setOcrError] = useState<string | null>(null);
   const startedRef = useRef(false);
 
+  // OCR is async; the user may rename the receipt or set a fee while the scan is
+  // in flight. Read the LATEST values (not the mount-time closure) when deciding
+  // the prefill, so a concurrent edit is never clobbered.
+  const latestRef = useRef({ initialName, initialTax, initialTip, onPrefill });
+  useEffect(() => {
+    latestRef.current = { initialName, initialTax, initialTip, onPrefill };
+  }, [initialName, initialTax, initialTip, onPrefill]);
+
   useEffect(() => {
     // Run OCR once, and only when the receipt has no items yet.
     if (items.length > 0 || startedRef.current) return;
@@ -82,27 +90,35 @@ export function MatrixStateWrapper({
         if (extracted.length === 0) return;
 
         // Build a prefill-only update: never overwrite a name the user already
-        // typed or a fee they already set (Story 13.4). tax/tip prefill only
-        // when OCR returned a non-negative number (the DB enforces >= 0).
+        // typed or a fee they already set (Story 13.4). Read the LATEST values
+        // (latestRef), not the mount closure, so an edit made during the scan
+        // wins. tax/tip prefill only when OCR returned a non-negative number
+        // (the DB enforces >= 0).
+        const {
+          initialName: curName,
+          initialTax: curTax,
+          initialTip: curTip,
+          onPrefill: curOnPrefill,
+        } = latestRef.current;
         const update: Record<string, unknown> = { processed_data: extracted };
         const resolved: PrefilledFields = {
-          name: initialName,
-          tax: initialTax,
-          tip: initialTip,
+          name: curName,
+          tax: curTax,
+          tip: curTip,
         };
-        if (!initialName?.trim() && payload.merchant) {
+        if (!curName?.trim() && payload.merchant) {
           update.name = payload.merchant;
           resolved.name = payload.merchant;
         }
         if (
-          (initialTax ?? 0) === 0 &&
+          (curTax ?? 0) === 0 &&
           typeof payload.tax === "number" &&
           payload.tax >= 0
         ) {
           update.tax = payload.tax;
           resolved.tax = payload.tax;
         }
-        if ((initialTip ?? 0) === 0) {
+        if ((curTip ?? 0) === 0) {
           if (typeof payload.tip === "number" && payload.tip >= 0) {
             // OCR detected a tip — it wins over the default.
             update.tip = payload.tip;
@@ -128,7 +144,7 @@ export function MatrixStateWrapper({
           // Surface resolved fields BEFORE flipping `processing` off, so the
           // split view (which mounts only once processing ends) initializes
           // from the prefilled tax/tip.
-          onPrefill?.(resolved);
+          curOnPrefill?.(resolved);
           setItems(extracted);
         } else {
           setOcrError("Scanned the receipt but couldn't save the items.");
@@ -140,17 +156,9 @@ export function MatrixStateWrapper({
       }
     };
     void run();
-    // startedRef guarantees the body runs once; the extra deps only re-enter the
-    // early-return guard, so prefill always uses the initial (mount) values.
-  }, [
-    items.length,
-    receiptId,
-    imageUrl,
-    initialName,
-    initialTax,
-    initialTip,
-    onPrefill,
-  ]);
+    // startedRef guarantees the body runs once. Prefill inputs are read from
+    // latestRef (kept current by the effect above), so they aren't deps here.
+  }, [items.length, receiptId, imageUrl]);
 
   if (processing) {
     return (
