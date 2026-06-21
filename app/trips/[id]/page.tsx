@@ -8,8 +8,11 @@ import { supabase } from "@/utils/supabase/client";
 import { ReceiptUploadZone } from "@/components/feature/ReceiptUploadZone";
 import { ReceiptStagingModal } from "@/components/feature/ReceiptStagingModal";
 import { ReceiptList, type ReceiptListItem } from "@/components/feature/ReceiptList";
+import { ReceiptQuotaGate } from "@/components/feature/ReceiptQuotaGate";
+import { AccessRequestModal } from "@/components/feature/AccessRequestModal";
 import { SettleUpLedger } from "@/components/feature/SettleUpLedger";
 import { InviteLinkManager } from "@/components/feature/InviteLinkManager";
+import { fetchReceiptQuota, type ReceiptQuota } from "@/utils/db/receiptQuota";
 import {
   compileLedger,
   type LedgerReceipt,
@@ -44,6 +47,13 @@ export default function TripHubPage() {
   const [loadingTrip, setLoadingTrip] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stagingUrl, setStagingUrl] = useState<string | null>(null);
+  // Free-tier receipt quota (Story 14.4). Display-only; the DB trigger enforces.
+  const [quota, setQuota] = useState<ReceiptQuota | null>(null);
+  const [requestAccessOpen, setRequestAccessOpen] = useState(false);
+
+  const refreshQuota = useCallback(async () => {
+    setQuota(await fetchReceiptQuota());
+  }, []);
 
   const loadTrip = useCallback(
     async () => {
@@ -138,13 +148,15 @@ export default function TripHubPage() {
         },
         () => {
           void refreshReceipts();
+          // A new/removed receipt changes this user's rolling-window count.
+          void refreshQuota();
         },
       )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [tripId, user, refreshReceipts]);
+  }, [tripId, user, refreshReceipts, refreshQuota]);
 
   const isOwner = !!user && !!trip && trip.user_id === user.id;
 
@@ -164,7 +176,8 @@ export default function TripHubPage() {
       return;
     }
     void loadTrip();
-  }, [loading, user, router, loadTrip]);
+    void refreshQuota();
+  }, [loading, user, router, loadTrip, refreshQuota]);
 
   if (loading || !user || loadingTrip) {
     return (
@@ -199,7 +212,12 @@ export default function TripHubPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Add a receipt</h2>
-        <ReceiptUploadZone onUploaded={(url) => setStagingUrl(url)} />
+        <ReceiptQuotaGate
+          quota={quota}
+          onRequestAccess={() => setRequestAccessOpen(true)}
+        >
+          <ReceiptUploadZone onUploaded={(url) => setStagingUrl(url)} />
+        </ReceiptQuotaGate>
       </section>
 
       <section className="mt-6 flex flex-col gap-3">
@@ -233,12 +251,21 @@ export default function TripHubPage() {
           tripId={trip.id}
           participants={trip.participants ?? []}
           imageUrl={stagingUrl}
-          onClose={() => setStagingUrl(null)}
+          onClose={() => {
+            setStagingUrl(null);
+            // The insert may have been blocked by the quota trigger; resync the
+            // counter so the gate reflects the server's authoritative state.
+            void refreshQuota();
+          }}
           onCreated={(receiptId) => {
             setStagingUrl(null);
             router.push(`/trips/${trip.id}/receipts/${receiptId}`);
           }}
         />
+      ) : null}
+
+      {requestAccessOpen ? (
+        <AccessRequestModal onClose={() => setRequestAccessOpen(false)} />
       ) : null}
     </main>
   );

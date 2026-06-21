@@ -1,6 +1,6 @@
 # Story 14.4: Quota Visibility & Limit-Reached Block
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -49,8 +49,24 @@ so that the limit never feels like a broken app.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- `fetchReceiptQuota()` reads `receipt_quota_status()` (14.2) and maps to a typed `ReceiptQuota`; fails safe to `null` on error (no counter, server still enforces). +4 unit tests.
+- `ReceiptQuotaGate` wraps the add UI: unlimited/unknown → just the uploader (AC4); free-tier with allowance → "`remaining` of `limit` receipts left this week" + uploader (AC1); at the cap → limit-reached block **instead of** the uploader (pre-check → no orphaned upload, AC6) with the "Get unlimited access" CTA (AC3).
+- Trip page fetches quota on load and refreshes it on every realtime receipt change and on staging-modal close, so the counter tracks the server.
+- **Server is the authority (AC2, AC5):** `ReceiptStagingModal` maps an insert error containing `RECEIPT_QUOTA_EXCEEDED` (from the 14.2 trigger) to a friendly limit message — covers the race where the pre-check passed but the server blocked.
+- CTA opens the `AccessRequestModal` (built in 14.5).
+- `npm run lint` + `npm run build` + `npm test` clean (57 tests).
+
 ### File List
+
+**Added:**
+- `utils/db/receiptQuota.ts`
+- `components/feature/ReceiptQuotaGate.tsx`
+- `tests/integration/db/receiptQuota.test.ts`
+
+**Modified:**
+- `app/trips/[id]/page.tsx`
+- `components/feature/ReceiptStagingModal.tsx`

@@ -52,7 +52,13 @@ export function ReceiptStagingModal({
         .single();
 
       if (insertError || !data) {
-        setError(insertError?.message ?? "Could not save the receipt.");
+        // The server quota trigger (Story 14.2) raises a distinguishable error;
+        // map it to a friendly limit message rather than a raw DB string. This
+        // is the authority even if the UI pre-check (14.4) let the user through.
+        const message = insertError?.message?.includes("RECEIPT_QUOTA_EXCEEDED")
+          ? "You've reached the free-tier limit of 3 receipts per week. Close this and request unlimited access to add more."
+          : (insertError?.message ?? "Could not save the receipt.");
+        setError(message);
         return;
       }
       onCreated(data.id as string);
