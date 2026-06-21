@@ -18,7 +18,9 @@ export default function InvitePage() {
   const { user, loading } = useAuth();
 
   const [status, setStatus] = useState<Status>("working");
-  const startedRef = useRef(false);
+  // Track which token we've already redeemed, so navigating between two invite
+  // links without a remount still redeems the second one.
+  const startedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -29,9 +31,9 @@ export default function InvitePage() {
       return;
     }
 
-    // Redeem exactly once.
-    if (startedRef.current) return;
-    startedRef.current = true;
+    // Redeem each token exactly once.
+    if (startedRef.current === token) return;
+    startedRef.current = token;
 
     const redeem = async () => {
       const { data, error } = await supabase.rpc("redeem_invite_token", {

@@ -92,6 +92,7 @@ export function InviteLinkManager({ tripId }: Props) {
             <input
               type="text"
               readOnly
+              aria-label="Invite link"
               value={link}
               onFocus={(event) => event.target.select()}
               className="w-full rounded border border-neutral-300 bg-transparent px-3 py-2 font-mono text-xs dark:border-neutral-700"

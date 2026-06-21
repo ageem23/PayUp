@@ -43,7 +43,7 @@ as $$
   );
 $$;
 
-revoke execute on function public.is_trip_member(uuid) from anon;
+revoke execute on function public.is_trip_member(uuid) from public;
 grant execute on function public.is_trip_member(uuid) to authenticated;
 
 -- Feature 11.3: members get READ on the trip so they can open it. They do NOT
@@ -105,5 +105,5 @@ begin
 end;
 $$;
 
-revoke execute on function public.redeem_invite_token(uuid) from anon;
+revoke execute on function public.redeem_invite_token(uuid) from public;
 grant execute on function public.redeem_invite_token(uuid) to authenticated;

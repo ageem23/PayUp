@@ -63,9 +63,9 @@ $$;
 
 -- Only authenticated users may call these; the owner check inside still gates
 -- per-trip access.
-revoke execute on function public.generate_invite_token(uuid) from anon;
-revoke execute on function public.disable_invite_token(uuid) from anon;
-revoke execute on function public.get_invite_token(uuid) from anon;
+revoke execute on function public.generate_invite_token(uuid) from public;
+revoke execute on function public.disable_invite_token(uuid) from public;
+revoke execute on function public.get_invite_token(uuid) from public;
 grant execute on function public.generate_invite_token(uuid) to authenticated;
 grant execute on function public.disable_invite_token(uuid) to authenticated;
 grant execute on function public.get_invite_token(uuid) to authenticated;
