@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/utils/supabase/client";
+import { defaultTipFromItems } from "@/utils/math/defaultTip";
 
 export type LineItem = { id: string; name: string; price: number };
 
@@ -101,13 +102,20 @@ export function MatrixStateWrapper({
           update.tax = payload.tax;
           resolved.tax = payload.tax;
         }
-        if (
-          (initialTip ?? 0) === 0 &&
-          typeof payload.tip === "number" &&
-          payload.tip >= 0
-        ) {
-          update.tip = payload.tip;
-          resolved.tip = payload.tip;
+        if ((initialTip ?? 0) === 0) {
+          if (typeof payload.tip === "number" && payload.tip >= 0) {
+            // OCR detected a tip — it wins over the default.
+            update.tip = payload.tip;
+            resolved.tip = payload.tip;
+          } else {
+            // No tip on the receipt: default to 20% of the pre-tax subtotal
+            // (Story 13.5). Skipped when it computes to 0 (empty subtotal).
+            const defaultTip = defaultTipFromItems(extracted);
+            if (defaultTip > 0) {
+              update.tip = defaultTip;
+              resolved.tip = defaultTip;
+            }
+          }
         }
 
         // Persist under the user's RLS session (client-side).

@@ -124,7 +124,7 @@ development_status:
   13-2-trip-receipt-list: done
   13-3-delete-receipt: done
   13-4-ocr-autopopulate-name-tax-tip: done
-  13-5-smart-default-tip: backlog
+  13-5-smart-default-tip: done
   13-6-edit-receipt-lines-name: backlog
   13-7-mobile-matrix-above-fees: backlog
   epic-13-retrospective: optional
