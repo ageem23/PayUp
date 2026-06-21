@@ -8,6 +8,7 @@ import { supabase } from "@/utils/supabase/client";
 import { ReceiptUploadZone } from "@/components/feature/ReceiptUploadZone";
 import { ReceiptStagingModal } from "@/components/feature/ReceiptStagingModal";
 import { SettleUpLedger } from "@/components/feature/SettleUpLedger";
+import { InviteLinkManager } from "@/components/feature/InviteLinkManager";
 import {
   compileLedger,
   type LedgerReceipt,
@@ -18,6 +19,7 @@ type Trip = {
   id: string;
   name: string;
   participants: string[] | null;
+  user_id: string | null;
 };
 
 export default function TripHubPage() {
@@ -34,18 +36,19 @@ export default function TripHubPage() {
   const [stagingUrl, setStagingUrl] = useState<string | null>(null);
 
   const loadTrip = useCallback(
-    async (userId: string) => {
+    async () => {
       setLoadingTrip(true);
       setError(null);
       try {
         // Fetch the trip and its receipts together; the receipts feed the
         // cross-receipt Settle Up ledger (Epic 8). RLS scopes both to the user.
         const [tripRes, receiptsRes] = await Promise.all([
+          // No owner filter: RLS returns the trip if the user owns it OR is a
+          // member (Feature 11.3), so invited members can open it too.
           supabase
             .from("trips")
-            .select("id,name,participants")
+            .select("id,name,participants,user_id")
             .eq("id", tripId)
-            .eq("user_id", userId)
             .maybeSingle(),
           supabase
             .from("receipts")
@@ -83,6 +86,8 @@ export default function TripHubPage() {
     [tripId],
   );
 
+  const isOwner = !!user && !!trip && trip.user_id === user.id;
+
   // Recompute the minimal settle-up transfers whenever the trip's receipts or
   // participant list change. `balanced` is false if the ledger doesn't reconcile
   // to zero — in that case we don't render (misleading) transfers.
@@ -98,7 +103,7 @@ export default function TripHubPage() {
       router.replace("/");
       return;
     }
-    void loadTrip(user.id);
+    void loadTrip();
   }, [loading, user, router, loadTrip]);
 
   if (loading || !user || loadingTrip) {
@@ -136,6 +141,12 @@ export default function TripHubPage() {
         <h2 className="text-lg font-medium">Add a receipt</h2>
         <ReceiptUploadZone onUploaded={(url) => setStagingUrl(url)} />
       </section>
+
+      {isOwner ? (
+        <div className="mt-6">
+          <InviteLinkManager tripId={trip.id} />
+        </div>
+      ) : null}
 
       <SettleUpLedger transfers={transfers} error={receiptsError || !balanced} />
 
