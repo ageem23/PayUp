@@ -2,13 +2,32 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/utils/supabase/client";
+import { defaultTipFromItems } from "@/utils/math/defaultTip";
 
 export type LineItem = { id: string; name: string; price: number };
+
+// The richer OCR payload (Story 13.4). tax/tip/total are null when the model
+// couldn't find them on the receipt (vs. a real 0).
+type OcrPayload = {
+  items?: LineItem[];
+  merchant?: string | null;
+  tax?: number | null;
+  tip?: number | null;
+  total?: number | null;
+};
+
+export type PrefilledFields = { name: string | null; tax: number; tip: number };
 
 type Props = {
   receiptId: string;
   imageUrl: string | null;
   initialProcessedData: LineItem[] | null;
+  /** Current receipt name/fees, used to prefill ONLY when empty/zero. */
+  initialName: string | null;
+  initialTax: number;
+  initialTip: number;
+  /** Called after OCR prefills any of name/tax/tip, with the resolved values. */
+  onPrefill?: (fields: PrefilledFields) => void;
   children: (items: LineItem[]) => ReactNode;
 };
 
@@ -16,6 +35,10 @@ export function MatrixStateWrapper({
   receiptId,
   imageUrl,
   initialProcessedData,
+  initialName,
+  initialTax,
+  initialTip,
+  onPrefill,
   children,
 }: Props) {
   const initialItems = Array.isArray(initialProcessedData)
@@ -25,6 +48,14 @@ export function MatrixStateWrapper({
   const [processing, setProcessing] = useState(initialItems.length === 0);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const startedRef = useRef(false);
+
+  // OCR is async; the user may rename the receipt or set a fee while the scan is
+  // in flight. Read the LATEST values (not the mount-time closure) when deciding
+  // the prefill, so a concurrent edit is never clobbered.
+  const latestRef = useRef({ initialName, initialTax, initialTip, onPrefill });
+  useEffect(() => {
+    latestRef.current = { initialName, initialTax, initialTip, onPrefill };
+  }, [initialName, initialTax, initialTip, onPrefill]);
 
   useEffect(() => {
     // Run OCR once, and only when the receipt has no items yet.
@@ -54,17 +85,66 @@ export function MatrixStateWrapper({
           setOcrError("Couldn't scan the receipt. Please try again.");
           return;
         }
-        const payload = (await res.json()) as { items?: LineItem[] };
+        const payload = (await res.json()) as OcrPayload;
         const extracted = Array.isArray(payload.items) ? payload.items : [];
         if (extracted.length === 0) return;
+
+        // Build a prefill-only update: never overwrite a name the user already
+        // typed or a fee they already set (Story 13.4). Read the LATEST values
+        // (latestRef), not the mount closure, so an edit made during the scan
+        // wins. tax/tip prefill only when OCR returned a non-negative number
+        // (the DB enforces >= 0).
+        const {
+          initialName: curName,
+          initialTax: curTax,
+          initialTip: curTip,
+          onPrefill: curOnPrefill,
+        } = latestRef.current;
+        const update: Record<string, unknown> = { processed_data: extracted };
+        const resolved: PrefilledFields = {
+          name: curName,
+          tax: curTax,
+          tip: curTip,
+        };
+        if (!curName?.trim() && payload.merchant) {
+          update.name = payload.merchant;
+          resolved.name = payload.merchant;
+        }
+        if (
+          (curTax ?? 0) === 0 &&
+          typeof payload.tax === "number" &&
+          payload.tax >= 0
+        ) {
+          update.tax = payload.tax;
+          resolved.tax = payload.tax;
+        }
+        if ((curTip ?? 0) === 0) {
+          if (typeof payload.tip === "number" && payload.tip >= 0) {
+            // OCR detected a tip — it wins over the default.
+            update.tip = payload.tip;
+            resolved.tip = payload.tip;
+          } else {
+            // No tip on the receipt: default to 20% of the pre-tax subtotal
+            // (Story 13.5). Skipped when it computes to 0 (empty subtotal).
+            const defaultTip = defaultTipFromItems(extracted);
+            if (defaultTip > 0) {
+              update.tip = defaultTip;
+              resolved.tip = defaultTip;
+            }
+          }
+        }
 
         // Persist under the user's RLS session (client-side).
         const { data, error } = await supabase
           .from("receipts")
-          .update({ processed_data: extracted })
+          .update(update)
           .eq("id", receiptId)
           .select("id");
         if (!error && data && data.length > 0) {
+          // Surface resolved fields BEFORE flipping `processing` off, so the
+          // split view (which mounts only once processing ends) initializes
+          // from the prefilled tax/tip.
+          curOnPrefill?.(resolved);
           setItems(extracted);
         } else {
           setOcrError("Scanned the receipt but couldn't save the items.");
@@ -76,6 +156,8 @@ export function MatrixStateWrapper({
       }
     };
     void run();
+    // startedRef guarantees the body runs once. Prefill inputs are read from
+    // latestRef (kept current by the effect above), so they aren't deps here.
   }, [items.length, receiptId, imageUrl]);
 
   if (processing) {

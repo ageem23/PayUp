@@ -117,3 +117,14 @@ development_status:
   12-1-enable-backend-realtime: done
   12-2-implement-realtime-ui: done
   epic-12-retrospective: optional
+
+  # Epic 13: Streamline the Receipt Experience
+  epic-13: done
+  13-1-mobile-camera-capture: done
+  13-2-trip-receipt-list: done
+  13-3-delete-receipt: done
+  13-4-ocr-autopopulate-name-tax-tip: done
+  13-5-smart-default-tip: done
+  13-6-edit-receipt-lines-name: done
+  13-7-mobile-matrix-above-fees: done
+  epic-13-retrospective: optional

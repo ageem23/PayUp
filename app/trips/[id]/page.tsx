@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import { ReceiptUploadZone } from "@/components/feature/ReceiptUploadZone";
 import { ReceiptStagingModal } from "@/components/feature/ReceiptStagingModal";
+import { ReceiptList, type ReceiptListItem } from "@/components/feature/ReceiptList";
 import { SettleUpLedger } from "@/components/feature/SettleUpLedger";
 import { InviteLinkManager } from "@/components/feature/InviteLinkManager";
 import {
@@ -22,6 +23,15 @@ type Trip = {
   user_id: string | null;
 };
 
+// The trip page needs both the ledger fields (LedgerReceipt) and the list
+// display fields, so it fetches a superset. compileLedger only reads the
+// LedgerReceipt subset, so the extra columns are harmless to it.
+type TripReceipt = LedgerReceipt & ReceiptListItem;
+
+// Single source of truth for the receipt columns the page reads (list + ledger).
+const RECEIPT_SELECT =
+  "id,name,image_url,created_at,paid_by,processed_data,split_among,tax,tip";
+
 export default function TripHubPage() {
   const params = useParams<{ id: string }>();
   const tripId = params.id;
@@ -29,7 +39,7 @@ export default function TripHubPage() {
   const { user, loading } = useAuth();
 
   const [trip, setTrip] = useState<Trip | null>(null);
-  const [receipts, setReceipts] = useState<LedgerReceipt[]>([]);
+  const [receipts, setReceipts] = useState<TripReceipt[]>([]);
   const [receiptsError, setReceiptsError] = useState(false);
   const [loadingTrip, setLoadingTrip] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +62,9 @@ export default function TripHubPage() {
             .maybeSingle(),
           supabase
             .from("receipts")
-            .select("paid_by,processed_data,split_among,tax,tip")
-            .eq("trip_id", tripId),
+            .select(RECEIPT_SELECT)
+            .eq("trip_id", tripId)
+            .order("created_at", { ascending: false }),
         ]);
 
         if (tripRes.error || !tripRes.data) {
@@ -70,7 +81,7 @@ export default function TripHubPage() {
             setReceipts([]);
             setReceiptsError(true);
           } else {
-            setReceipts(receiptsRes.data as LedgerReceipt[]);
+            setReceipts(receiptsRes.data as TripReceipt[]);
             setReceiptsError(false);
           }
         }
@@ -85,6 +96,55 @@ export default function TripHubPage() {
     },
     [tripId],
   );
+
+  // Lightweight re-fetch of just the receipts (no full-page loading flag), used
+  // after a delete and by the realtime subscription so the list/ledger update
+  // without flashing the whole page.
+  const refreshReceipts = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("receipts")
+        .select(RECEIPT_SELECT)
+        .eq("trip_id", tripId)
+        .order("created_at", { ascending: false });
+      if (error || !Array.isArray(data)) {
+        // Surface the failure rather than leaving stale/empty receipts that
+        // would misleadingly render as "No receipts yet".
+        setReceiptsError(true);
+        return;
+      }
+      setReceipts(data as TripReceipt[]);
+      setReceiptsError(false);
+    } catch {
+      setReceiptsError(true);
+    }
+  }, [tripId]);
+
+  // Realtime (Epic 12): when any receipt on this trip is added, changed, or
+  // deleted by another client, refresh the list + ledger so it disappears /
+  // appears for everyone. `replica identity full` (0008) makes the DELETE event
+  // carry the old row, so the trip_id filter matches deletes too.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`trip-receipts:${tripId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "receipts",
+          filter: `trip_id=eq.${tripId}`,
+        },
+        () => {
+          void refreshReceipts();
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [tripId, user, refreshReceipts]);
 
   const isOwner = !!user && !!trip && trip.user_id === user.id;
 
@@ -140,6 +200,24 @@ export default function TripHubPage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Add a receipt</h2>
         <ReceiptUploadZone onUploaded={(url) => setStagingUrl(url)} />
+      </section>
+
+      <section className="mt-6 flex flex-col gap-3">
+        <h2 className="text-lg font-medium">Receipts</h2>
+        {receiptsError ? (
+          <p
+            role="alert"
+            className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+          >
+            Could not load receipts. Try refreshing the page.
+          </p>
+        ) : (
+          <ReceiptList
+            tripId={trip.id}
+            receipts={receipts}
+            onDeleted={() => void refreshReceipts()}
+          />
+        )}
       </section>
 
       {isOwner ? (

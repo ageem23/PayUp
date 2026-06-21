@@ -89,11 +89,17 @@ describe("POST /api/ocr", () => {
 
   it("preserves decimal prices without truncation (numbers and currency strings)", async () => {
     mockGenerateContent.mockResolvedValue({
-      text: JSON.stringify([
-        { name: "Pizza", price: 19.99 },
-        { name: "Wine", price: "$24.50" },
-        { name: "Water", price: "4.05" },
-      ]),
+      text: JSON.stringify({
+        merchant: "Luigi's",
+        items: [
+          { name: "Pizza", price: 19.99 },
+          { name: "Wine", price: "$24.50" },
+          { name: "Water", price: "4.05" },
+        ],
+        tax: 3.2,
+        tip: 6.5,
+        total: 58.24,
+      }),
     });
 
     const response = await POST(
@@ -109,5 +115,79 @@ describe("POST /api/ocr", () => {
     expect(json.items[1].price).toBe(24.5);
     expect(json.items[2].price).toBe(4.05);
     expect(typeof json.items[0].id).toBe("string");
+  });
+
+  it("extracts merchant, tax, tip and total (Story 13.4)", async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({
+        merchant: "  Luigi's Trattoria  ",
+        items: [{ name: "Pizza", price: 19.99 }],
+        tax: "$3.20",
+        tip: 6.5,
+        total: 29.69,
+      }),
+    });
+
+    const response = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(response.status).toBe(200);
+
+    const json = (await response.json()) as {
+      merchant: string | null;
+      tax: number | null;
+      tip: number | null;
+      total: number | null;
+    };
+    expect(json.merchant).toBe("Luigi's Trattoria"); // trimmed
+    expect(json.tax).toBe(3.2); // currency string normalized
+    expect(json.tip).toBe(6.5);
+    expect(json.total).toBe(29.69);
+  });
+
+  it("returns 502 when the model returns malformed/non-object JSON", async () => {
+    mockGenerateContent.mockResolvedValue({ text: "not json at all" });
+    const res = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(res.status).toBe(502);
+  });
+
+  it("returns 502 when the response has no items array", async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({ merchant: "X", tax: 1 }),
+    });
+    const res = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(res.status).toBe(502);
+  });
+
+  it("returns null for missing merchant/tax/tip (so they aren't auto-filled)", async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({
+        merchant: null,
+        items: [{ name: "Pizza", price: 19.99 }],
+        tax: null,
+        tip: null,
+        total: null,
+      }),
+    });
+
+    const response = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(response.status).toBe(200);
+
+    const json = (await response.json()) as {
+      items: unknown[];
+      merchant: string | null;
+      tax: number | null;
+      tip: number | null;
+    };
+    expect(json.items).toHaveLength(1);
+    expect(json.merchant).toBeNull();
+    expect(json.tax).toBeNull();
+    expect(json.tip).toBeNull();
   });
 });

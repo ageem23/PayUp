@@ -7,14 +7,31 @@ import {
   type SplitAllocation,
 } from "@/components/feature/ReceiptMatrix";
 import { ReceiptSummarySidebar } from "@/components/feature/ReceiptSummarySidebar";
+import { ReceiptItemsEditor } from "@/components/feature/ReceiptItemsEditor";
 import { ActivityTimeline } from "@/components/feature/ActivityTimeline";
 import type { SaveState } from "@/components/feature/SyncStatusBar";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import { patchReceiptFees } from "@/utils/db/receiptFees";
 import { patchReceiptSplits } from "@/utils/db/matrixPatch";
+import { patchReceiptItems } from "@/utils/db/receiptEdits";
 import { calculateProportionalSplit } from "@/utils/math/billCalculations";
 import type { AuditLogEntry } from "@/types/audit";
+
+// How long to coalesce a burst of line-item keystrokes into one write.
+const ITEMS_SAVE_DEBOUNCE_MS = 600;
+
+// Order-insensitive equality for processed_data — like sameSplits, used to
+// ignore the echo of our own item write and only apply genuine remote edits.
+function sameItems(a: LineItem[], b: LineItem[]): boolean {
+  const norm = (list: LineItem[]) =>
+    JSON.stringify(
+      [...list]
+        .map((i) => ({ id: i.id, name: i.name, price: i.price }))
+        .sort((x, y) => x.id.localeCompare(y.id)),
+    );
+  return norm(a) === norm(b);
+}
 
 // Debounce window for persisting fee edits — long enough to coalesce a burst of
 // keystrokes into one write, short enough to feel instant.
@@ -111,6 +128,58 @@ export function ReceiptSplitView({
     splitsRef.current = next;
     setSplits(next);
   }, []);
+
+  // Editable line items (Story 13.6). Seeded from the OCR'd items prop; from
+  // here ReceiptSplitView owns them so edits flow to the matrix + totals.
+  // `lineItemsRef` mirrors them so handlers/realtime act on the latest array.
+  const [lineItems, setLineItems] = useState<LineItem[]>(items);
+  const lineItemsRef = useRef<LineItem[]>(items);
+  const setLineItemsSynced = useCallback((next: LineItem[]) => {
+    lineItemsRef.current = next;
+    setLineItems(next);
+  }, []);
+  const [editingItems, setEditingItems] = useState(false);
+  const [itemsSaveState, setItemsSaveState] = useState<SaveState>("idle");
+  const itemsChain = useRef<Promise<unknown>>(Promise.resolve());
+  const itemsSeq = useRef(0);
+  const itemsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Persist the full processed_data array (serialized so a slower earlier save
+  // can't land after a newer one; only the newest seq sets the visible status).
+  const saveItems = useCallback(
+    (next: LineItem[]) => {
+      const seq = ++itemsSeq.current;
+      setItemsSaveState("saving");
+      itemsChain.current = itemsChain.current
+        .catch(() => undefined)
+        .then(() => patchReceiptItems(receiptId, next))
+        .then(() => {
+          if (itemsSeq.current === seq) setItemsSaveState("saved");
+        })
+        .catch(() => {
+          if (itemsSeq.current === seq) setItemsSaveState("error");
+        });
+    },
+    [receiptId],
+  );
+
+  const cancelPendingItemsSave = useCallback(() => {
+    if (itemsTimerRef.current) {
+      clearTimeout(itemsTimerRef.current);
+      itemsTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleItemsSave = useCallback(
+    (next: LineItem[]) => {
+      cancelPendingItemsSave();
+      itemsTimerRef.current = setTimeout(() => {
+        itemsTimerRef.current = null;
+        saveItems(next);
+      }, ITEMS_SAVE_DEBOUNCE_MS);
+    },
+    [cancelPendingItemsSave, saveItems],
+  );
 
   // In-memory activity log for this session (newest first). Not persisted.
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
@@ -224,9 +293,21 @@ export function ReceiptSplitView({
         (payload) => {
           const row = payload.new as {
             split_among?: SplitAllocation[] | null;
+            processed_data?: LineItem[] | null;
             tax?: number | null;
             tip?: number | null;
           };
+
+          // Apply remote line-item edits (Story 13.6) — ignore the echo of our
+          // own write via the order-insensitive compare. Skipped while a local
+          // item edit is mid-debounce, so an inbound echo can't overwrite the
+          // value the user is still typing (mirrors the fee guard below).
+          if (itemsTimerRef.current === null && Array.isArray(row.processed_data)) {
+            const incomingItems = row.processed_data;
+            if (!sameItems(lineItemsRef.current, incomingItems)) {
+              setLineItemsSynced(incomingItems);
+            }
+          }
 
           // Replace splits only when the incoming array differs (order-
           // insensitive) — the echo of our own write is ignored, preventing a
@@ -264,9 +345,9 @@ export function ReceiptSplitView({
     return () => {
       void supabase.removeChannel(channel);
     };
-    // setSplitsSynced is stable (useCallback []), so this only re-subscribes on
-    // receiptId change.
-  }, [receiptId, setSplitsSynced]);
+    // setSplitsSynced/setLineItemsSynced are stable (useCallback []), so this
+    // only re-subscribes on receiptId change.
+  }, [receiptId, setSplitsSynced, setLineItemsSynced]);
 
   const handleTaxChange = (value: number) => {
     setTax(value);
@@ -288,7 +369,8 @@ export function ReceiptSplitView({
     const seq = ++splitSeq.current;
     setSplitsSynced(next);
     setSplitSaveState("saving");
-    const itemName = items.find((item) => item.id === itemId)?.name || "item";
+    const itemName =
+      lineItemsRef.current.find((item) => item.id === itemId)?.name || "item";
     logActivity(
       checked
         ? `assigned '${itemName}' to ${participant}`
@@ -308,13 +390,102 @@ export function ReceiptSplitView({
       });
   };
 
+  // --- Line-item editing (Story 13.6) ---
+  const updateItem = useCallback(
+    (itemId: string, patch: Partial<Pick<LineItem, "name" | "price">>) => {
+      const next = lineItemsRef.current.map((item) =>
+        item.id === itemId ? { ...item, ...patch } : item,
+      );
+      setLineItemsSynced(next);
+      scheduleItemsSave(next);
+    },
+    [setLineItemsSynced, scheduleItemsSave],
+  );
+
+  const handleAddItem = useCallback(() => {
+    const next: LineItem[] = [
+      ...lineItemsRef.current,
+      { id: crypto.randomUUID(), name: "", price: 0 },
+    ];
+    setLineItemsSynced(next);
+    // Drop any pending debounced edit — it holds a stale array that would land
+    // after this immediate write and undo the add.
+    cancelPendingItemsSave();
+    saveItems(next); // structural change — persist immediately, no debounce
+    logActivity("added a line item");
+  }, [setLineItemsSynced, cancelPendingItemsSave, saveItems, logActivity]);
+
+  const handleDeleteItem = useCallback(
+    (itemId: string) => {
+      const removed = lineItemsRef.current.find((item) => item.id === itemId);
+      const nextItems = lineItemsRef.current.filter(
+        (item) => item.id !== itemId,
+      );
+      setLineItemsSynced(nextItems);
+      // Drop any pending debounced edit (stale array) before this immediate save.
+      cancelPendingItemsSave();
+      saveItems(nextItems);
+
+      // Prune the deleted item's split_among node so no orphan assignment is
+      // left behind, and persist the splits via their own serialized chain.
+      const prunedSplits = splitsRef.current.filter(
+        (split) => split.item_id !== itemId,
+      );
+      if (prunedSplits.length !== splitsRef.current.length) {
+        setSplitsSynced(prunedSplits);
+        const seq = ++splitSeq.current;
+        setSplitSaveState("saving");
+        splitChain.current = splitChain.current
+          .catch(() => undefined)
+          .then(() => patchReceiptSplits(receiptId, prunedSplits))
+          .then(() => {
+            if (splitSeq.current === seq) setSplitSaveState("saved");
+          })
+          .catch(() => {
+            if (splitSeq.current === seq) setSplitSaveState("error");
+          });
+      }
+      logActivity(`removed '${removed?.name || "item"}'`);
+    },
+    [
+      receiptId,
+      setLineItemsSynced,
+      cancelPendingItemsSave,
+      saveItems,
+      setSplitsSynced,
+      logActivity,
+    ],
+  );
+
+  // Flush a pending debounced item edit on unmount so it isn't lost on navigate.
+  // Queue it on itemsChain so it lands after any in-flight save (preserves order).
+  useEffect(() => {
+    return () => {
+      if (itemsTimerRef.current) {
+        clearTimeout(itemsTimerRef.current);
+        itemsTimerRef.current = null;
+        const pending = lineItemsRef.current;
+        itemsChain.current = itemsChain.current
+          .catch(() => undefined)
+          .then(() => patchReceiptItems(receiptId, pending))
+          .catch(() => undefined);
+      }
+    };
+  }, [receiptId]);
+
   const totals = useMemo(
-    () => calculateProportionalSplit(items, splits, participants, tax, tip),
-    [items, splits, participants, tax, tip],
+    () => calculateProportionalSplit(lineItems, splits, participants, tax, tip),
+    [lineItems, splits, participants, tax, tip],
   );
 
   return (
     <div>
+      {/*
+        Mobile (single column): the assignment matrix comes first, fees/total
+        sidebar second (Story 13.7) — assign items, then read the totals below.
+        Desktop (lg): `order` restores sidebar-left, matrix-right to match the
+        [16rem_1fr] column track.
+      */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[16rem_1fr]">
         <ReceiptSummarySidebar
           tax={tax}
@@ -323,14 +494,36 @@ export function ReceiptSplitView({
           onTipChange={handleTipChange}
           saveState={feeSaveState}
           totals={totals}
+          className="order-2 lg:order-1"
         />
-        <ReceiptMatrix
-          items={items}
-          participants={participants}
-          splits={splits}
-          onToggle={handleToggle}
-          saveState={splitSaveState}
-        />
+        <div className="order-1 flex flex-col gap-3 lg:order-2">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setEditingItems((value) => !value)}
+              className="rounded border border-neutral-300 px-3 py-1 text-sm font-medium dark:border-neutral-700"
+            >
+              {editingItems ? "Done editing" : "Edit items"}
+            </button>
+          </div>
+          {editingItems ? (
+            <ReceiptItemsEditor
+              items={lineItems}
+              saveState={itemsSaveState}
+              onChangeName={(id, name) => updateItem(id, { name })}
+              onChangePrice={(id, price) => updateItem(id, { price })}
+              onAdd={handleAddItem}
+              onDelete={handleDeleteItem}
+            />
+          ) : null}
+          <ReceiptMatrix
+            items={lineItems}
+            participants={participants}
+            splits={splits}
+            onToggle={handleToggle}
+            saveState={splitSaveState}
+          />
+        </div>
       </div>
       <ActivityTimeline entries={auditLog} />
     </div>

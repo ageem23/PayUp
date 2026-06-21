@@ -8,9 +8,11 @@ import { supabase } from "@/utils/supabase/client";
 import {
   MatrixStateWrapper,
   type LineItem,
+  type PrefilledFields,
 } from "@/components/feature/MatrixStateWrapper";
 import { type SplitAllocation } from "@/components/feature/ReceiptMatrix";
 import { ReceiptSplitView } from "@/components/feature/ReceiptSplitView";
+import { patchReceiptName } from "@/utils/db/receiptEdits";
 
 type Trip = { id: string; name: string; participants: string[] | null };
 
@@ -35,6 +37,26 @@ export default function ReceiptMatrixPage() {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Inline receipt-name editing (Story 13.6).
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [savingName, setSavingName] = useState(false);
+
+  const saveName = useCallback(async () => {
+    if (!receipt) return;
+    const trimmed = nameDraft.trim();
+    setSavingName(true);
+    try {
+      await patchReceiptName(receipt.id, trimmed);
+      setReceipt((prev) => (prev ? { ...prev, name: trimmed } : prev));
+      setEditingName(false);
+    } catch {
+      // Keep edit mode open so the user can retry; the row is unchanged.
+    } finally {
+      setSavingName(false);
+    }
+  }, [receipt, nameDraft]);
 
   const loadData = useCallback(
     async (userId: string) => {
@@ -78,6 +100,22 @@ export default function ReceiptMatrixPage() {
     [tripId, receiptId],
   );
 
+  // Reflect OCR-prefilled name/tax/tip (Story 13.4) in local state so the
+  // heading shows the merchant name and the split view (which mounts after OCR)
+  // initializes from the prefilled fees.
+  const handlePrefill = useCallback((fields: PrefilledFields) => {
+    setReceipt((prev) =>
+      prev
+        ? {
+            ...prev,
+            name: fields.name ?? prev.name,
+            tax: fields.tax,
+            tip: fields.tip,
+          }
+        : prev,
+    );
+  }, []);
+
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -113,7 +151,52 @@ export default function ReceiptMatrixPage() {
       <Link href={`/trips/${tripId}`} className="text-sm text-neutral-500 underline">
         ← {trip.name}
       </Link>
-      <h1 className="mb-6 mt-4 text-2xl font-semibold">{receipt.name}</h1>
+      {editingName ? (
+        <div className="mb-6 mt-4 flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            value={nameDraft}
+            onChange={(event) => setNameDraft(event.target.value)}
+            placeholder="Receipt name"
+            aria-label="Receipt name"
+            autoFocus
+            className="min-w-0 flex-1 rounded border border-neutral-300 bg-transparent px-3 py-2 text-xl font-semibold dark:border-neutral-700"
+          />
+          <button
+            type="button"
+            onClick={() => void saveName()}
+            disabled={savingName}
+            className="rounded bg-foreground px-3 py-2 text-sm font-medium text-background disabled:opacity-50"
+          >
+            {savingName ? "Saving…" : "Save"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditingName(false)}
+            disabled={savingName}
+            className="rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="mb-6 mt-4 flex items-center gap-2">
+          <h1 className="text-2xl font-semibold">
+            {receipt.name?.trim() || "Untitled receipt"}
+          </h1>
+          <button
+            type="button"
+            onClick={() => {
+              setNameDraft(receipt.name ?? "");
+              setEditingName(true);
+            }}
+            aria-label="Rename receipt"
+            className="rounded p-1 text-sm text-neutral-400 transition-colors hover:text-foreground"
+          >
+            ✏️
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="flex items-start justify-center rounded-lg border border-neutral-300 p-4">
@@ -136,6 +219,10 @@ export default function ReceiptMatrixPage() {
             receiptId={receipt.id}
             imageUrl={receipt.image_url}
             initialProcessedData={receipt.processed_data}
+            initialName={receipt.name}
+            initialTax={receipt.tax ?? 0}
+            initialTip={receipt.tip ?? 0}
+            onPrefill={handlePrefill}
           >
             {(items) => (
               <ReceiptSplitView
