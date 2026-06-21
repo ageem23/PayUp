@@ -64,6 +64,16 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 **Modified:**
 - `components/feature/ReceiptSplitView.tsx` (realtime `postgres_changes` subscription; apply remote split/fee edits, loop-guarded)
 
+## Review Findings
+
+_From `bmad-code-review` (adversarial; concurrency-focused) on `main...epic-12`, 2026-06-21._
+
+- [x] [Review][Patch] Inbound fee handler discarded a mid-typing local edit [components/feature/ReceiptSplitView.tsx] — **FIXED (HIGH):** an inbound `tax`/`tip` arriving during the 600 ms fee debounce overwrote `currentFeesRef`/`savedFeesRef`, so the saver then saw `saved===current` and silently dropped the user's value. Inbound fees are now applied only when no local fee save is pending (`feeTimerRef.current === null`).
+- [x] [Review][Patch] Local toggle could clobber a concurrent remote split edit [components/feature/ReceiptSplitView.tsx] — **FIXED (HIGH):** `handleToggle` computed from the render-closure `splits`, so after an inbound remote update a toggle wrote a stale full array and wiped the remote change. Toggles now base off `splitsRef` (kept in sync with state + inbound), via a `setSplitsSynced` helper.
+- [x] [Review][Patch] Order-sensitive self-echo compare [components/feature/ReceiptSplitView.tsx] — **FIXED (MEDIUM):** `JSON.stringify` equality failed because jsonb reorders keys/elements, so our own echo didn't match and re-applied. Added `sameSplits` (sorts items + participants) for an order-insensitive compare.
+
+**Dismissed:** StrictMode double-subscribe / async `removeChannel` race (canonical Supabase channel-per-effect + cleanup pattern; dev-only / rare on fast nav); `replica identity full` not applied → silent no-op (manual deploy step, documented; code degrades safely without crashing or resetting the grid); no `subscribe` status UI (no surface to display it; documented limitation).
+
 ## Change Log
 
 | Date | Version | Description | Author |
