@@ -77,6 +77,10 @@ _From `bmad-code-review` (adversarial; security-focused) on `main...epic-11`, 20
 - [x] [Review][Patch] Owner self-redeem polluted membership [supabase/migrations/0007_trip_members.sql] — **FIXED:** `redeem_invite_token` returns early for the trip owner (already has access) instead of inserting a self-membership row.
 - [x] [Review][Patch] Login stranded already-authenticated users on `/?redirect=…` [app/page.tsx] — **FIXED:** an effect now redirects a signed-in visitor to the safe target (also resolves the Epic 9 deferred "redirect authed users" item).
 
+- [x] [Review][Patch] Path traversal via the invite token in the redirect URL [app/invite/[token]/page.tsx, utils/auth/redirect.ts] — **FIXED (CodeRabbit 2nd-pass, Critical):** a token like `../../admin` produced `?redirect=/invite/../../admin`, which the old `safeInternalPath` accepted and the browser normalized to `/admin`. Now `safeInternalPath` rejects any `..` path segment (+ tests), and the invite page UUID-validates the token before building the redirect or calling the RPC.
+- [x] [Review][Patch] Revoke EXECUTE from `public` not just `anon` [supabase/migrations/0006, 0007] — **FIXED (Major):** all five invite RPCs/helpers now `revoke … from public` (default PUBLIC execute closed), execute granted to `authenticated`.
+- [x] [Review][Patch] Token-scoped redeem-once guard + invite-link input aria-label [app/invite/[token]/page.tsx, components/feature/InviteLinkManager.tsx] — **FIXED (Minor).**
+
 **Dismissed:** "disable doesn't remove existing members" (AC5 invalidates the *link* / future joins — member removal is a separate, out-of-scope feature); StrictMode double-redeem (RPC is idempotent via `on conflict do nothing`); clipboard unavailable on HTTP (already caught with a manual-copy message + selectable field); non-uuid token (RPC cast error → handled error page); whitelist-gates-"anyone" (consistent with the brief's "registered users"; Share copy reworded).
 
 ## Change Log

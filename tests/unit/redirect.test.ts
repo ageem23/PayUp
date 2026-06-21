@@ -22,6 +22,15 @@ describe("safeInternalPath", () => {
     expect(safeInternalPath("\\/evil.com")).toBeNull();
   });
 
+  it("rejects path-traversal (`..`) segments", () => {
+    expect(safeInternalPath("/invite/../../admin")).toBeNull();
+    expect(safeInternalPath("/../secret")).toBeNull();
+    expect(safeInternalPath("/foo/..")).toBeNull();
+    expect(safeInternalPath("/foo/../bar")).toBeNull();
+    // A literal ".." inside a segment (not its own segment) is still a path.
+    expect(safeInternalPath("/foo..bar")).toBe("/foo..bar");
+  });
+
   it("rejects empty / non-path / nullish values", () => {
     expect(safeInternalPath(null)).toBeNull();
     expect(safeInternalPath(undefined)).toBeNull();

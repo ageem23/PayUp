@@ -8,6 +8,12 @@ import { supabase } from "@/utils/supabase/client";
 
 type Status = "working" | "error";
 
+// Invite tokens are uuids. Validating the format up front rejects malformed
+// route params (e.g. path-traversal `../../x`) before they reach the redirect
+// URL or the RPC.
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Magic invite redemption (Epic 11, Story 11.2). Anonymous visitors are sent to
 // log in (returning here afterwards); logged-in visitors are added to the trip
 // via the redeem RPC and forwarded to it. Invalid/disabled tokens → error.
@@ -24,6 +30,12 @@ export default function InvitePage() {
 
   useEffect(() => {
     if (loading) return;
+
+    // Reject a malformed token before it ever reaches the redirect URL or RPC.
+    if (!UUID_RE.test(token)) {
+      setStatus("error");
+      return;
+    }
 
     // Not signed in → bounce to login, preserving where to return to (AC2).
     if (!user) {

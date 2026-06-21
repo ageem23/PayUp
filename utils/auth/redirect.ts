@@ -8,6 +8,9 @@ export function safeInternalPath(raw: string | null | undefined): string | null 
   if (!raw.startsWith("/")) return null; // must be a path
   if (raw.startsWith("//")) return null; // protocol-relative
   if (raw.includes("\\")) return null; // backslash → normalized to slash
+  // Reject path-traversal: a `..` segment would let the browser normalize the
+  // path to an unintended route (e.g. /invite/../../admin → /admin).
+  if (raw.split(/[/?#]/).includes("..")) return null;
   return raw;
 }
 
