@@ -132,6 +132,8 @@ export default function LoginPage() {
           <label className="flex flex-col gap-1 text-sm">
             Email
             <input
+              id="email"
+              name="email"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
@@ -146,6 +148,8 @@ export default function LoginPage() {
           <label className="flex flex-col gap-1 text-sm">
             Password
             <input
+              id="password"
+              name="password"
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}

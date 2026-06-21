@@ -10,6 +10,7 @@ import { ReceiptSummarySidebar } from "@/components/feature/ReceiptSummarySideba
 import { ActivityTimeline } from "@/components/feature/ActivityTimeline";
 import type { SaveState } from "@/components/feature/SyncStatusBar";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/utils/supabase/client";
 import { patchReceiptFees } from "@/utils/db/receiptFees";
 import { patchReceiptSplits } from "@/utils/db/matrixPatch";
 import { calculateProportionalSplit } from "@/utils/math/billCalculations";
@@ -24,6 +25,23 @@ const money = (value: number): string => `$${value.toFixed(2)}`;
 // Cap the in-memory activity log so a long session can't grow it (and the DOM)
 // without bound. Older entries fall off the bottom.
 const AUDIT_LOG_LIMIT = 100;
+
+// Order-insensitive equality for split_among. jsonb reorders object keys and
+// may reorder array elements, so the echo of our own write won't string-match
+// the local array — normalize (sort items + participants) before comparing so
+// the self-echo is correctly ignored and only genuine remote changes apply.
+function sameSplits(a: SplitAllocation[], b: SplitAllocation[]): boolean {
+  const norm = (splits: SplitAllocation[]) =>
+    JSON.stringify(
+      [...splits]
+        .map((s) => ({
+          item_id: s.item_id,
+          assigned: [...(s.assigned_participants ?? [])].sort(),
+        }))
+        .sort((x, y) => x.item_id.localeCompare(y.item_id)),
+    );
+  return norm(a) === norm(b);
+}
 
 // Pure: returns a new split_among array with only the matching item_id node
 // changed; every other line is preserved (split_among is one JSONB column).
@@ -82,6 +100,17 @@ export function ReceiptSplitView({
     Array.isArray(initialSplitAmong) ? initialSplitAmong : [],
   );
   const [splitSaveState, setSplitSaveState] = useState<SaveState>("idle");
+  // Mirrors `splits` so handlers and the realtime callback always toggle from
+  // the LATEST array (incl. an inbound remote update) rather than a render
+  // closure — otherwise a local toggle could write a stale full array and wipe
+  // a concurrent remote edit.
+  const splitsRef = useRef<SplitAllocation[]>(
+    Array.isArray(initialSplitAmong) ? initialSplitAmong : [],
+  );
+  const setSplitsSynced = useCallback((next: SplitAllocation[]) => {
+    splitsRef.current = next;
+    setSplits(next);
+  }, []);
 
   // In-memory activity log for this session (newest first). Not persisted.
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
@@ -176,6 +205,69 @@ export function ReceiptSplitView({
     };
   }, [receiptId]);
 
+  // Realtime collaboration (Epic 12, Story 12.2): apply remote split/fee edits
+  // to this receipt as they happen. Every local edit already writes to the DB
+  // (the autosave above), and Supabase broadcasts that row change to the other
+  // members' channels — so the DB write IS the broadcast; here we only consume
+  // inbound changes. Scoped to authenticated, whitelisted members (no anon).
+  useEffect(() => {
+    const channel = supabase
+      .channel(`receipt:${receiptId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "receipts",
+          filter: `id=eq.${receiptId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            split_among?: SplitAllocation[] | null;
+            tax?: number | null;
+            tip?: number | null;
+          };
+
+          // Replace splits only when the incoming array differs (order-
+          // insensitive) — the echo of our own write is ignored, preventing a
+          // feedback loop and grid reset (AC5). Compared against splitsRef so a
+          // local toggle can't race the closure.
+          if (Array.isArray(row.split_among)) {
+            const incoming = row.split_among;
+            if (!sameSplits(splitsRef.current, incoming)) {
+              setSplitsSynced(incoming);
+            }
+          }
+
+          // Apply remote fees — but NOT while a local fee edit is mid-debounce,
+          // or we'd overwrite the user's in-progress value (the saver would then
+          // see saved===current and silently drop their edit). When idle, sync
+          // the fee refs so the inbound values count as already-committed (LWW).
+          if (feeTimerRef.current === null) {
+            if (typeof row.tax === "number") {
+              const next = row.tax;
+              setTax((prev) => (prev === next ? prev : next));
+              savedFeesRef.current = { ...savedFeesRef.current, tax: next };
+              currentFeesRef.current = { ...currentFeesRef.current, tax: next };
+            }
+            if (typeof row.tip === "number") {
+              const next = row.tip;
+              setTip((prev) => (prev === next ? prev : next));
+              savedFeesRef.current = { ...savedFeesRef.current, tip: next };
+              currentFeesRef.current = { ...currentFeesRef.current, tip: next };
+            }
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+    // setSplitsSynced is stable (useCallback []), so this only re-subscribes on
+    // receiptId change.
+  }, [receiptId, setSplitsSynced]);
+
   const handleTaxChange = (value: number) => {
     setTax(value);
     currentFeesRef.current = { ...currentFeesRef.current, tax: value };
@@ -189,9 +281,12 @@ export function ReceiptSplitView({
   };
 
   const handleToggle = (itemId: string, participant: string, checked: boolean) => {
-    const next = applyToggle(splits, itemId, participant, checked);
+    // Base the toggle on the latest splits (splitsRef), which includes any
+    // inbound remote update — not the render closure — so we don't overwrite a
+    // concurrent edit when we save the full array.
+    const next = applyToggle(splitsRef.current, itemId, participant, checked);
     const seq = ++splitSeq.current;
-    setSplits(next);
+    setSplitsSynced(next);
     setSplitSaveState("saving");
     const itemName = items.find((item) => item.id === itemId)?.name || "item";
     logActivity(
