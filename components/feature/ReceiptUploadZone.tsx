@@ -65,6 +65,8 @@ export function ReceiptUploadZone({ onUploaded }: Props) {
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) void uploadFile(file);
+    // Reset so re-selecting the same file (or re-shooting) still fires onChange.
+    event.target.value = "";
   };
 
   return (
@@ -91,6 +93,28 @@ export function ReceiptUploadZone({ onUploaded }: Props) {
         <input
           type="file"
           accept="image/jpeg,image/png"
+          onChange={handleChange}
+          disabled={uploading}
+          className="hidden"
+        />
+      </label>
+
+      {/*
+        Camera capture: `capture="environment"` asks mobile browsers to open the
+        rear camera directly. Desktop and unsupported browsers ignore `capture`
+        and fall back to the normal file picker — same pipeline either way.
+      */}
+      <label
+        className={`mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-neutral-300 p-3 text-center text-sm font-medium dark:border-neutral-700 ${
+          uploading ? "cursor-not-allowed opacity-60" : ""
+        }`}
+      >
+        <span aria-hidden="true">📷</span>
+        <span>Take a photo</span>
+        <input
+          type="file"
+          accept="image/jpeg,image/png"
+          capture="environment"
           onChange={handleChange}
           disabled={uploading}
           className="hidden"
