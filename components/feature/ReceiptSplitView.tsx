@@ -456,6 +456,12 @@ export function ReceiptSplitView({
 
   return (
     <div>
+      {/*
+        Mobile (single column): the assignment matrix comes first, fees/total
+        sidebar second (Story 13.7) — assign items, then read the totals below.
+        Desktop (lg): `order` restores sidebar-left, matrix-right to match the
+        [16rem_1fr] column track.
+      */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[16rem_1fr]">
         <ReceiptSummarySidebar
           tax={tax}
@@ -464,8 +470,9 @@ export function ReceiptSplitView({
           onTipChange={handleTipChange}
           saveState={feeSaveState}
           totals={totals}
+          className="order-2 lg:order-1"
         />
-        <div className="flex flex-col gap-3">
+        <div className="order-1 flex flex-col gap-3 lg:order-2">
           <div className="flex justify-end">
             <button
               type="button"

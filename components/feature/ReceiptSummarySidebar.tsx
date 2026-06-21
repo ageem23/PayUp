@@ -26,6 +26,8 @@ type Props = {
   onTipChange: (value: number) => void;
   saveState: SaveState;
   totals: ProportionalSplitResult;
+  /** Extra classes for the root element (e.g. responsive ordering). */
+  className?: string;
 };
 
 type FeeFieldProps = {
@@ -79,9 +81,14 @@ export function ReceiptSummarySidebar({
   onTipChange,
   saveState,
   totals,
+  className,
 }: Props) {
   return (
-    <aside className="flex flex-col gap-4 rounded-lg border border-neutral-300 p-4">
+    <aside
+      className={`flex flex-col gap-4 rounded-lg border border-neutral-300 p-4${
+        className ? ` ${className}` : ""
+      }`}
+    >
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">Fees</h2>
         <SyncStatusBar state={saveState} />
