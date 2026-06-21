@@ -115,5 +115,5 @@ development_status:
   # Epic 12: Real-Time Collaboration
   epic-12: in-progress
   12-1-enable-backend-realtime: done
-  12-2-implement-realtime-ui: backlog
+  12-2-implement-realtime-ui: done
   epic-12-retrospective: optional

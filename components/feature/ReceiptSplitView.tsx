@@ -10,6 +10,7 @@ import { ReceiptSummarySidebar } from "@/components/feature/ReceiptSummarySideba
 import { ActivityTimeline } from "@/components/feature/ActivityTimeline";
 import type { SaveState } from "@/components/feature/SyncStatusBar";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/utils/supabase/client";
 import { patchReceiptFees } from "@/utils/db/receiptFees";
 import { patchReceiptSplits } from "@/utils/db/matrixPatch";
 import { calculateProportionalSplit } from "@/utils/math/billCalculations";
@@ -173,6 +174,63 @@ export function ReceiptSplitView({
           void patchReceiptFees(receiptId, { tax, tip }).catch(() => undefined);
         }
       }
+    };
+  }, [receiptId]);
+
+  // Realtime collaboration (Epic 12, Story 12.2): apply remote split/fee edits
+  // to this receipt as they happen. Every local edit already writes to the DB
+  // (the autosave above), and Supabase broadcasts that row change to the other
+  // members' channels — so the DB write IS the broadcast; here we only consume
+  // inbound changes. Scoped to authenticated, whitelisted members (no anon).
+  useEffect(() => {
+    const channel = supabase
+      .channel(`receipt:${receiptId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "receipts",
+          filter: `id=eq.${receiptId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            split_among?: SplitAllocation[] | null;
+            tax?: number | null;
+            tip?: number | null;
+          };
+
+          // Replace splits only when the incoming array differs — the echo of
+          // our own write matches current state and is ignored, which prevents
+          // a feedback loop and grid reset (AC5).
+          if (Array.isArray(row.split_among)) {
+            const incoming = row.split_among;
+            setSplits((prev) =>
+              JSON.stringify(prev) === JSON.stringify(incoming) ? prev : incoming,
+            );
+          }
+
+          // Apply remote fees without re-saving them; sync the fee refs so the
+          // debounced saver treats the inbound values as already-committed
+          // (last-write-wins; the DB row is the source of truth).
+          if (typeof row.tax === "number") {
+            const next = row.tax;
+            setTax((prev) => (prev === next ? prev : next));
+            savedFeesRef.current = { ...savedFeesRef.current, tax: next };
+            currentFeesRef.current = { ...currentFeesRef.current, tax: next };
+          }
+          if (typeof row.tip === "number") {
+            const next = row.tip;
+            setTip((prev) => (prev === next ? prev : next));
+            savedFeesRef.current = { ...savedFeesRef.current, tip: next };
+            currentFeesRef.current = { ...currentFeesRef.current, tip: next };
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
     };
   }, [receiptId]);
 
