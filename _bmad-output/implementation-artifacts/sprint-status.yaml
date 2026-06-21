@@ -122,7 +122,7 @@ development_status:
   epic-13: in-progress
   13-1-mobile-camera-capture: done
   13-2-trip-receipt-list: done
-  13-3-delete-receipt: backlog
+  13-3-delete-receipt: done
   13-4-ocr-autopopulate-name-tax-tip: backlog
   13-5-smart-default-tip: backlog
   13-6-edit-receipt-lines-name: backlog

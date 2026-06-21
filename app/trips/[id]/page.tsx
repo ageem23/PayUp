@@ -28,6 +28,10 @@ type Trip = {
 // LedgerReceipt subset, so the extra columns are harmless to it.
 type TripReceipt = LedgerReceipt & ReceiptListItem;
 
+// Single source of truth for the receipt columns the page reads (list + ledger).
+const RECEIPT_SELECT =
+  "id,name,image_url,created_at,paid_by,processed_data,split_among,tax,tip";
+
 export default function TripHubPage() {
   const params = useParams<{ id: string }>();
   const tripId = params.id;
@@ -58,9 +62,7 @@ export default function TripHubPage() {
             .maybeSingle(),
           supabase
             .from("receipts")
-            .select(
-              "id,name,image_url,created_at,paid_by,processed_data,split_among,tax,tip",
-            )
+            .select(RECEIPT_SELECT)
             .eq("trip_id", tripId)
             .order("created_at", { ascending: false }),
         ]);
@@ -94,6 +96,47 @@ export default function TripHubPage() {
     },
     [tripId],
   );
+
+  // Lightweight re-fetch of just the receipts (no full-page loading flag), used
+  // after a delete and by the realtime subscription so the list/ledger update
+  // without flashing the whole page.
+  const refreshReceipts = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("receipts")
+      .select(RECEIPT_SELECT)
+      .eq("trip_id", tripId)
+      .order("created_at", { ascending: false });
+    if (!error && Array.isArray(data)) {
+      setReceipts(data as TripReceipt[]);
+      setReceiptsError(false);
+    }
+  }, [tripId]);
+
+  // Realtime (Epic 12): when any receipt on this trip is added, changed, or
+  // deleted by another client, refresh the list + ledger so it disappears /
+  // appears for everyone. `replica identity full` (0008) makes the DELETE event
+  // carry the old row, so the trip_id filter matches deletes too.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`trip-receipts:${tripId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "receipts",
+          filter: `trip_id=eq.${tripId}`,
+        },
+        () => {
+          void refreshReceipts();
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [tripId, user, refreshReceipts]);
 
   const isOwner = !!user && !!trip && trip.user_id === user.id;
 
@@ -153,7 +196,11 @@ export default function TripHubPage() {
 
       <section className="mt-6 flex flex-col gap-3">
         <h2 className="text-lg font-medium">Receipts</h2>
-        <ReceiptList tripId={trip.id} receipts={receipts} />
+        <ReceiptList
+          tripId={trip.id}
+          receipts={receipts}
+          onDeleted={() => void refreshReceipts()}
+        />
       </section>
 
       {isOwner ? (
