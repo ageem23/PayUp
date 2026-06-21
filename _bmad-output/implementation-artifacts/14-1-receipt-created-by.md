@@ -1,6 +1,6 @@
 # Story 14.1: Receipt Authorship Attribution (`created_by`)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -50,8 +50,16 @@ so that receipts can be counted per user — the prerequisite for any quota.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- Migration-only story; no app or test change (column is additive, behavior unchanged).
+- `created_by` added with `default auth.uid()` so new inserts self-attribute even before the 14.2 trigger; backfilled to the trip owner where determinable.
+- **Manual Supabase apply** required for `0009` (CI does not run migrations; per Epic 12 convention).
+- Confirmed no insert path sets `created_by` explicitly — `ReceiptStagingModal` omits it, so the default applies. RLS unchanged (additive column).
+
 ### File List
+
+**Added:**
+- `supabase/migrations/0009_receipt_created_by.sql`

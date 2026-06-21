@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth, NOT_AUTHORIZED_MESSAGE } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { readSafeRedirect } from "@/utils/auth/redirect";
 
 type Mode = "login" | "register";
@@ -54,11 +54,8 @@ export default function LoginPage() {
         ? await signIn(email, password)
         : await signUp(email, password);
 
-    // Whitelist rejection → dedicated screen; other errors → inline message.
-    if (authError === NOT_AUTHORIZED_MESSAGE) {
-      router.push("/unauthorized");
-      return; // keep loading=true while we navigate away
-    }
+    // Open signup (Epic 14): a whitelist miss is no longer a rejection — any
+    // auth error is just shown inline. There is no /unauthorized dead-end.
     if (authError) {
       setError(authError);
       setLoading(false);

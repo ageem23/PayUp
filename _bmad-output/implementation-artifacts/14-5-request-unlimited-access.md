@@ -1,6 +1,6 @@
 # Story 14.5: Request Unlimited Access
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -50,8 +50,20 @@ so that an admin can whitelist me without me hunting for a contact channel.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- Migration `0011_access_requests.sql`: table + partial unique index (`where status = 'pending'`) for graceful dedup + RLS (user inserts/reads own). **Manual Supabase apply.**
+- `requestUnlimitedAccess()` util: inserts a pending request for the current user; maps the `23505` unique-violation to `{ ok: true, alreadyPending: true }` so a repeat submission is a graceful no-op (AC5). Returns a clear error otherwise.
+- `AccessRequestModal` component: explains the free tier, submits the request, and shows a confirmation that access isn't granted immediately (AC3, AC4). Wired to the 14.4 limit-reached CTA (next story).
+- Added `tests/integration/db/accessRequest.test.ts` (insert / duplicate-dedup / error / not-signed-in) — 4 tests.
+- **Implementation note:** built before 14.4 in this epic run so the limit-reached CTA (14.4) wires to an existing modal; no safety ordering between 14.4/14.5 (only 14.1→14.2→14.3 is gated).
+
 ### File List
+
+**Added:**
+- `supabase/migrations/0011_access_requests.sql`
+- `utils/db/accessRequest.ts`
+- `components/feature/AccessRequestModal.tsx`
+- `tests/integration/db/accessRequest.test.ts`

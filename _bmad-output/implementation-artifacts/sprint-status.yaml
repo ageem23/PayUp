@@ -128,3 +128,12 @@ development_status:
   13-6-edit-receipt-lines-name: done
   13-7-mobile-matrix-above-fees: done
   epic-13-retrospective: optional
+
+  # Epic 14: Open Access & the Metered Free Tier
+  epic-14: done
+  14-1-receipt-created-by: done
+  14-2-weekly-receipt-quota: done
+  14-3-open-signup-tier: done
+  14-4-quota-visibility-block: done
+  14-5-request-unlimited-access: done
+  epic-14-retrospective: optional

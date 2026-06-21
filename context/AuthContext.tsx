@@ -10,11 +10,7 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/utils/supabase/client";
-import { isWhitelisted } from "@/utils/auth/whitelist";
 import { readSafeRedirect } from "@/utils/auth/redirect";
-
-export const NOT_AUTHORIZED_MESSAGE =
-  "This email is not authorized to access PayUp. Contact an administrator to be added to the whitelist.";
 
 type AuthResult = { error: string | null };
 
@@ -22,10 +18,6 @@ type AuthContextValue = {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  // Set when a session is rejected because its email isn't whitelisted (e.g. a
-  // Google sign-in by an unlisted user). Lets the OAuth callback distinguish a
-  // whitelist rejection (→ /unauthorized) from "never signed in" (→ /).
-  authNotice: string | null;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   signUp: (email: string, password: string) => Promise<AuthResult>;
   signInWithGoogle: () => Promise<AuthResult>;
@@ -38,51 +30,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
-    // Accept a session only if its user is still whitelisted. This guards
-    // re-hydrated and refreshed sessions (e.g. a user removed from the
-    // whitelist after a previous login, or a token established outside our
-    // signIn wrapper) — not just fresh signIn/signUp calls. Fails closed.
-    const applySession = async (nextSession: Session | null) => {
-      // A session is only accepted if it carries an email that is on the
-      // whitelist. A session with a missing/empty email (e.g. phone or
-      // anonymous auth) is treated as unauthorized — fail closed.
-      if (nextSession) {
-        const email = nextSession.user?.email;
-        if (!email || !(await isWhitelisted(email))) {
-          await supabase.auth.signOut();
-          if (active) {
-            setSession(null);
-            setUser(null);
-            setAuthNotice(NOT_AUTHORIZED_MESSAGE);
-          }
-          return;
-        }
-      }
-      if (active) {
-        setSession(nextSession);
-        setUser(nextSession?.user ?? null);
-        if (nextSession) setAuthNotice(null);
-      }
+    // Epic 14: the whitelist is no longer an authentication gate — anyone who
+    // authenticates holds a valid session. Tier (unlimited vs. free) is resolved
+    // and enforced server-side (is_unlimited_user() + the receipt-quota trigger),
+    // never by signing the user out here. So we simply accept any session.
+    const applySession = (nextSession: Session | null) => {
+      if (!active) return;
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
     };
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      await applySession(data.session);
-      if (active) {
-        setLoading(false);
-      }
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => applySession(data.session))
+      // Settle loading even if getSession() rejects, or auth stays stuck loading.
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      // signOut() inside applySession re-fires this with a null session, which
-      // takes the no-email path below — no infinite loop.
-      void applySession(nextSession);
+      applySession(nextSession);
     });
 
     return () => {
@@ -93,54 +66,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
-      // Clear any stale rejection notice from a prior attempt so it can't
-      // misroute this one (applySession can't clear it on the sign-out's null
-      // event — the notice must survive that to drive the /unauthorized route).
-      setAuthNotice(null);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) {
-        return { error: error.message };
-      }
-
-      // Credentials are valid — now enforce the whitelist. If the email is not
-      // authorized, tear the session down immediately so it never lingers.
-      if (!(await isWhitelisted(email))) {
-        await supabase.auth.signOut();
-        return { error: NOT_AUTHORIZED_MESSAGE };
-      }
-      return { error: null };
+      return { error: error?.message ?? null };
     },
     [],
   );
 
   const signUp = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
-      setAuthNotice(null);
-      // Check the whitelist BEFORE creating the account to avoid orphan auth
-      // users that can never sign in.
-      if (!(await isWhitelisted(email))) {
-        return { error: NOT_AUTHORIZED_MESSAGE };
-      }
-
+      // Open signup (Epic 14): no whitelist pre-check. Any email may register;
+      // unlisted users land on the free tier and are metered server-side.
       const { error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        return { error: error.message };
-      }
-      return { error: null };
+      return { error: error?.message ?? null };
     },
     [],
   );
 
   const signInWithGoogle = useCallback(async (): Promise<AuthResult> => {
-    setAuthNotice(null);
     // Implicit OAuth handshake: Supabase routes to Google, then back to our
-    // callback route, which enforces the whitelist intersection before letting
-    // the session into the app. The redirect URL must be allow-listed in the
-    // Supabase Auth settings. Carry a safe `?redirect` (e.g. an invite link)
-    // through to the callback so OAuth users land where they intended.
+    // callback route. No whitelist intersection — any Google account may sign
+    // in. Carry a safe `?redirect` (e.g. an invite link) through to the callback
+    // so OAuth users land where they intended. The redirect URL must be
+    // allow-listed in the Supabase Auth settings.
     const redirect = readSafeRedirect();
     const callbackUrl = `${window.location.origin}/auth/callback${
       redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""
@@ -162,7 +112,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         loading,
-        authNotice,
         signIn,
         signUp,
         signInWithGoogle,
