@@ -25,11 +25,9 @@ export function ReceiptStagingModal({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Name is optional: if left blank, OCR auto-fills it from the merchant name
+    // on the receipt (Story 13.4).
     const trimmed = name.trim();
-    if (!trimmed) {
-      setError("Please enter a receipt name.");
-      return;
-    }
     if (!paidBy) {
       setError("Please select who paid.");
       return;
@@ -76,13 +74,12 @@ export function ReceiptStagingModal({
         <h2 className="mb-4 text-lg font-semibold">Stage receipt</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-sm">
-            Receipt name
+            Receipt name <span className="text-neutral-400">(optional)</span>
             <input
               type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              required
-              placeholder="Dinner at Luigi's"
+              placeholder="Auto-filled from the receipt"
               className="rounded border border-neutral-300 bg-transparent px-3 py-2"
             />
           </label>

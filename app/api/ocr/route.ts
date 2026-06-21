@@ -49,6 +49,18 @@ function normalizePrice(raw: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+// Like normalizePrice but preserves a "not present" signal as null, so the
+// client can distinguish "OCR found no tip" (null) from "tip is 0" — the
+// 20%-default logic (Story 13.5) depends on that distinction.
+function normalizeNullableAmount(raw: unknown): number | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
+  const cleaned = String(raw).replace(/[^0-9.]/g, "");
+  if (cleaned === "") return null;
+  const parsed = Number.parseFloat(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 /**
  * Receipt OCR via Gemini. Server-only so GEMINI_API_KEY is never exposed to the
  * client. Returns the extracted line items; the client persists them to
@@ -107,9 +119,9 @@ export async function POST(request: Request) {
   // when a model is overloaded). Defaults to the latest flash-lite alias.
   const model = process.env.GEMINI_OCR_MODEL ?? "gemini-flash-lite-latest";
 
-  // Force a strict JSON array of { name, price } via Structured Outputs.
-  // Wrap the provider call so quota/network/parse errors return a clean 502
-  // instead of crashing the handler / leaking a stack trace.
+  // Force a strict JSON object (merchant + items + tax/tip/total) via Structured
+  // Outputs. Wrap the provider call so quota/network/parse errors return a clean
+  // 502 instead of crashing the handler / leaking a stack trace.
   let responseText: string;
   try {
     const ai = new GoogleGenAI({ apiKey });
@@ -120,7 +132,15 @@ export async function POST(request: Request) {
           role: "user",
           parts: [
             {
-              text: "Extract every purchased line item from this receipt as a JSON array. Use raw numeric prices only — strip currency symbols ($, €) and labels like 'Total:'. Exclude tax, tip, and grand totals.",
+              text:
+                "Extract this receipt as JSON with these fields: " +
+                "`merchant` (the restaurant/store name, or null if not visible); " +
+                "`items` (an array of every purchased line item, each with `name` and a raw numeric `price`); " +
+                "`tax` (the tax amount as a raw number, or null if not shown); " +
+                "`tip` (the tip/gratuity amount, or null if not shown); " +
+                "`total` (the grand total, or null if not shown). " +
+                "Use raw numeric values only — strip currency symbols ($, €) and labels like 'Total:'. " +
+                "Do NOT include tax, tip, or grand totals as entries in the `items` array.",
             },
             { inlineData: { mimeType, data: base64 } },
           ],
@@ -132,19 +152,29 @@ export async function POST(request: Request) {
         temperature: 0,
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              price: { type: Type.NUMBER },
+          type: Type.OBJECT,
+          properties: {
+            merchant: { type: Type.STRING, nullable: true },
+            items: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  price: { type: Type.NUMBER },
+                },
+                required: ["name", "price"],
+              },
             },
-            required: ["name", "price"],
+            tax: { type: Type.NUMBER, nullable: true },
+            tip: { type: Type.NUMBER, nullable: true },
+            total: { type: Type.NUMBER, nullable: true },
           },
+          required: ["items"],
         },
       },
     });
-    responseText = response.text ?? "[]";
+    responseText = response.text ?? "{}";
   } catch (error) {
     // Surface the real upstream error server-side; the client still gets a
     // generic message (no stack/internal detail leaked).
@@ -155,18 +185,22 @@ export async function POST(request: Request) {
     );
   }
 
-  let rawLines: RawLine[] = [];
+  let parsed: Record<string, unknown> = {};
   try {
-    const parsed: unknown = JSON.parse(responseText);
-    if (Array.isArray(parsed)) {
-      rawLines = parsed.filter(
-        (entry): entry is RawLine =>
-          typeof entry === "object" && entry !== null,
-      );
+    const json: unknown = JSON.parse(responseText);
+    if (typeof json === "object" && json !== null && !Array.isArray(json)) {
+      parsed = json as Record<string, unknown>;
     }
   } catch {
-    rawLines = [];
+    parsed = {};
   }
+
+  const rawLines: RawLine[] = Array.isArray(parsed.items)
+    ? parsed.items.filter(
+        (entry): entry is RawLine =>
+          typeof entry === "object" && entry !== null,
+      )
+    : [];
 
   const items: LineItem[] = rawLines.map((line) => ({
     id: crypto.randomUUID(),
@@ -174,5 +208,18 @@ export async function POST(request: Request) {
     price: normalizePrice(line.price),
   }));
 
-  return NextResponse.json({ items });
+  const merchant =
+    typeof parsed.merchant === "string" && parsed.merchant.trim()
+      ? // Clamp to the receipts.name column width (varchar(255)) so a garbled
+        // long extraction can't fail the whole save.
+        parsed.merchant.trim().slice(0, 255)
+      : null;
+
+  return NextResponse.json({
+    items,
+    merchant,
+    tax: normalizeNullableAmount(parsed.tax),
+    tip: normalizeNullableAmount(parsed.tip),
+    total: normalizeNullableAmount(parsed.total),
+  });
 }

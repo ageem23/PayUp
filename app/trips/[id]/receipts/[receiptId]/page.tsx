@@ -8,6 +8,7 @@ import { supabase } from "@/utils/supabase/client";
 import {
   MatrixStateWrapper,
   type LineItem,
+  type PrefilledFields,
 } from "@/components/feature/MatrixStateWrapper";
 import { type SplitAllocation } from "@/components/feature/ReceiptMatrix";
 import { ReceiptSplitView } from "@/components/feature/ReceiptSplitView";
@@ -78,6 +79,22 @@ export default function ReceiptMatrixPage() {
     [tripId, receiptId],
   );
 
+  // Reflect OCR-prefilled name/tax/tip (Story 13.4) in local state so the
+  // heading shows the merchant name and the split view (which mounts after OCR)
+  // initializes from the prefilled fees.
+  const handlePrefill = useCallback((fields: PrefilledFields) => {
+    setReceipt((prev) =>
+      prev
+        ? {
+            ...prev,
+            name: fields.name ?? prev.name,
+            tax: fields.tax,
+            tip: fields.tip,
+          }
+        : prev,
+    );
+  }, []);
+
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -113,7 +130,9 @@ export default function ReceiptMatrixPage() {
       <Link href={`/trips/${tripId}`} className="text-sm text-neutral-500 underline">
         ← {trip.name}
       </Link>
-      <h1 className="mb-6 mt-4 text-2xl font-semibold">{receipt.name}</h1>
+      <h1 className="mb-6 mt-4 text-2xl font-semibold">
+        {receipt.name?.trim() || "Untitled receipt"}
+      </h1>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="flex items-start justify-center rounded-lg border border-neutral-300 p-4">
@@ -136,6 +155,10 @@ export default function ReceiptMatrixPage() {
             receiptId={receipt.id}
             imageUrl={receipt.image_url}
             initialProcessedData={receipt.processed_data}
+            initialName={receipt.name}
+            initialTax={receipt.tax ?? 0}
+            initialTip={receipt.tip ?? 0}
+            onPrefill={handlePrefill}
           >
             {(items) => (
               <ReceiptSplitView
