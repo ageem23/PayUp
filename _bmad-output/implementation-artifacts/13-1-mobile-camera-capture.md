@@ -4,7 +4,7 @@ baseline_commit: 156bdf07e9a7e3b9b259b7b2de440b76cf64c323
 
 # Story 13.1: Mobile Camera Capture
 
-Status: review
+Status: done
 
 ## Story
 

@@ -120,7 +120,7 @@ development_status:
 
   # Epic 13: Streamline the Receipt Experience
   epic-13: in-progress
-  13-1-mobile-camera-capture: backlog
+  13-1-mobile-camera-capture: done
   13-2-trip-receipt-list: backlog
   13-3-delete-receipt: backlog
   13-4-ocr-autopopulate-name-tax-tip: backlog
