@@ -12,7 +12,12 @@ export const DEFAULT_TIP_RATE = 0.2;
  * cent. Returns 0 for an empty/zero-subtotal receipt. Pure and side-effect free.
  */
 export function defaultTipFromItems(items: { price: number }[]): number {
-  const subtotal = items.reduce((sum, item) => sum + (item?.price ?? 0), 0);
+  const subtotal = items.reduce(
+    // Guard malformed jsonb prices (NaN / missing) so one bad line can't poison
+    // the whole subtotal.
+    (sum, item) => sum + (Number.isFinite(item?.price) ? item.price : 0),
+    0,
+  );
   if (!(subtotal > 0)) return 0;
   return Math.round(subtotal * DEFAULT_TIP_RATE * 100) / 100;
 }
