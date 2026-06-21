@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import type { BillItem } from "@/utils/math/billCalculations";
+import { deleteReceipt } from "@/utils/db/deleteReceipt";
 
 export type ReceiptListItem = {
   id: string;
@@ -17,6 +19,8 @@ export type ReceiptListItem = {
 type Props = {
   tripId: string;
   receipts: ReceiptListItem[];
+  /** Called after a receipt is successfully deleted, so the parent can refresh. */
+  onDeleted?: () => void;
 };
 
 const money = (value: number): string => `$${value.toFixed(2)}`;
@@ -40,7 +44,27 @@ function formatDate(value: string | null): string {
   });
 }
 
-export function ReceiptList({ tripId, receipts }: Props) {
+export function ReceiptList({ tripId, receipts, onDeleted }: Props) {
+  // Id awaiting a confirm click, the id currently deleting, and any id whose
+  // delete failed — all keyed by receipt id so only the affected row reacts.
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [errorId, setErrorId] = useState<string | null>(null);
+
+  const handleDelete = async (receipt: ReceiptListItem) => {
+    setBusyId(receipt.id);
+    setErrorId(null);
+    try {
+      await deleteReceipt(receipt.id, receipt.image_url);
+      setConfirmId(null);
+      onDeleted?.();
+    } catch {
+      setErrorId(receipt.id);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   if (receipts.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500 dark:border-neutral-700">
@@ -52,10 +76,10 @@ export function ReceiptList({ tripId, receipts }: Props) {
   return (
     <ul className="flex flex-col gap-2">
       {receipts.map((receipt) => (
-        <li key={receipt.id}>
+        <li key={receipt.id} className="flex items-center gap-2">
           <Link
             href={`/trips/${tripId}/receipts/${receipt.id}`}
-            className="flex items-center gap-3 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900"
           >
             {receipt.image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -89,6 +113,45 @@ export function ReceiptList({ tripId, receipts }: Props) {
               {money(receiptTotal(receipt))}
             </span>
           </Link>
+
+          {confirmId === receipt.id ? (
+            <span className="flex flex-shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => void handleDelete(receipt)}
+                disabled={busyId === receipt.id}
+                className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white disabled:opacity-60"
+              >
+                {busyId === receipt.id ? "Deleting…" : "Confirm"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmId(null);
+                  setErrorId(null);
+                }}
+                disabled={busyId === receipt.id}
+                className="rounded border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700"
+              >
+                Cancel
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmId(receipt.id)}
+              aria-label={`Delete ${receipt.name?.trim() || "receipt"}`}
+              className="flex-shrink-0 rounded p-2 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+            >
+              🗑️
+            </button>
+          )}
+
+          {errorId === receipt.id ? (
+            <span role="alert" className="flex-shrink-0 text-xs text-red-600">
+              Delete failed
+            </span>
+          ) : null}
         </li>
       ))}
     </ul>
