@@ -59,16 +59,19 @@ export default function ReceiptMatrixPage() {
   }, [receipt, nameDraft]);
 
   const loadData = useCallback(
-    async (userId: string) => {
+    async () => {
       setLoadingData(true);
       setError(null);
       try {
+        // No owner filter: RLS returns the trip if the user owns it OR is an
+        // approved member (Epic 11), so invited members can open a shared
+        // receipt — not just the owner. (Mirrors the trip hub page; without
+        // this, members hit a false "Receipt not found".)
         const [tripRes, receiptRes] = await Promise.all([
           supabase
             .from("trips")
             .select("id,name,participants")
             .eq("id", tripId)
-            .eq("user_id", userId)
             .maybeSingle(),
           supabase
             .from("receipts")
@@ -122,7 +125,7 @@ export default function ReceiptMatrixPage() {
       router.replace("/");
       return;
     }
-    void loadData(user.id);
+    void loadData();
   }, [loading, user, router, loadData]);
 
   if (loading || !user || loadingData) {
