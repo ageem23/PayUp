@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   fetchProfile,
   updateDisplayName,
+  uploadAvatar,
   DISPLAY_NAME_MAX,
 } from "@/utils/db/profile";
 
@@ -20,9 +21,12 @@ export default function AccountPage() {
   const { user, loading } = useAuth();
 
   const [displayName, setDisplayName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -35,6 +39,7 @@ export default function AccountPage() {
       const profile = await fetchProfile();
       if (active) {
         setDisplayName(profile?.displayName ?? "");
+        setAvatarUrl(profile?.avatarUrl ?? null);
         setLoadingProfile(false);
       }
     })();
@@ -42,6 +47,24 @@ export default function AccountPage() {
       active = false;
     };
   }, [loading, user, router]);
+
+  const handleAvatarChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = ""; // allow re-selecting the same file
+      if (!file) return;
+      setUploadingAvatar(true);
+      setAvatarError(null);
+      const result = await uploadAvatar(file);
+      setUploadingAvatar(false);
+      if (result.ok) {
+        setAvatarUrl(result.url);
+      } else {
+        setAvatarError(result.error);
+      }
+    },
+    [],
+  );
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -68,6 +91,50 @@ export default function AccountPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Profile</h2>
+
+        <div className="flex items-center gap-4">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- user-uploaded avatar of unknown size; next/image would need remotePatterns config for no benefit on a small avatar
+            <img
+              src={avatarUrl}
+              alt="Your avatar"
+              className="h-16 w-16 rounded-full object-cover"
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-200 text-xl font-semibold dark:bg-neutral-700"
+            >
+              {(displayName.trim() || user.email || "?")[0]?.toUpperCase()}
+            </span>
+          )}
+          <div className="flex flex-col gap-1">
+            <label className="cursor-pointer self-start rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium dark:border-neutral-700">
+              {uploadingAvatar
+                ? "Uploading…"
+                : avatarUrl
+                  ? "Change photo"
+                  : "Upload photo"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png"
+                onChange={(event) => void handleAvatarChange(event)}
+                disabled={uploadingAvatar}
+                className="hidden"
+              />
+            </label>
+            {avatarError ? (
+              <span role="alert" className="text-xs text-red-600">
+                {avatarError}
+              </span>
+            ) : (
+              <span className="text-xs text-neutral-400">
+                JPG or PNG, up to 5 MB.
+              </span>
+            )}
+          </div>
+        </div>
+
         <label className="flex flex-col gap-1 text-sm">
           Display name
           <input

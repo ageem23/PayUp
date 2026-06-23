@@ -71,11 +71,14 @@ describe("updateDisplayName", () => {
 describe("fetchProfile", () => {
   it("maps the row to a Profile", async () => {
     mockMaybeSingle.mockResolvedValue({
-      data: { display_name: "Bob" },
+      data: { display_name: "Bob", avatar_url: "https://x/y.png" },
       error: null,
     });
 
-    await expect(fetchProfile()).resolves.toEqual({ displayName: "Bob" });
+    await expect(fetchProfile()).resolves.toEqual({
+      displayName: "Bob",
+      avatarUrl: "https://x/y.png",
+    });
   });
 
   it("returns null on error (fail safe → email fallback)", async () => {
