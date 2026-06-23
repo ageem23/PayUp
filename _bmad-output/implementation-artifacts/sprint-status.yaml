@@ -150,7 +150,7 @@ development_status:
 
   # Epic 16: Dependency Security Remediation
   epic-16: in-progress
-  16-1-patch-transitive-deps: ready-for-dev
+  16-1-patch-transitive-deps: done
   16-2-upgrade-next15-react19: ready-for-dev
   16-3-post-upgrade-regression-verification: ready-for-dev
   16-4-stay-current-guardrails: ready-for-dev

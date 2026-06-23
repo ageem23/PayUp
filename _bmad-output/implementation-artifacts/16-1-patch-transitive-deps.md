@@ -1,6 +1,6 @@
 # Story 16.1: Patch Transitive Vulnerabilities (glob, postcss, js-yaml)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -52,8 +52,17 @@ so that we clear the easy, high-value alerts immediately.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- `package.json` `overrides`: `glob >=10.5.0`, `js-yaml >=4.2.0`, and `postcss "$postcss"` (the `$ref` form — postcss is a direct devDep, so a literal version override is rejected by npm with EOVERRIDE; bumped the direct devDep to `^8.5.10` and pointed transitive copies at it).
+- Resolved versions after `npm install`: **glob@13.0.6, js-yaml@5.1.0, postcss@8.5.15** — all at/above the required floors; `npm ls` shows no vulnerable copies remaining.
+- `npm audit` now lists **only Next.js** advisories (Story 16.2); the glob/postcss/js-yaml alerts are gone.
+- `npm run lint` + `npm run build` + `npm test` (75 tests) clean. No source changes — dependency-only.
+
 ### File List
+
+**Modified:**
+- `package.json`
+- `package-lock.json`
