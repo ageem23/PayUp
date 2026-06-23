@@ -10,6 +10,7 @@ import {
   uploadAvatar,
   DISPLAY_NAME_MAX,
 } from "@/utils/db/profile";
+import { AccountSecurity } from "@/components/feature/AccountSecurity";
 
 /**
  * Account settings (Stories 15.1–15.5). Authenticated-only. Currently hosts the
@@ -172,6 +173,8 @@ export default function AccountPage() {
           ) : null}
         </div>
       </section>
+
+      <AccountSecurity currentEmail={user.email ?? ""} />
     </main>
   );
 }

@@ -1,6 +1,6 @@
 # Story 15.5: Change Email & Password
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -44,8 +44,22 @@ so that I can keep my login current and secure.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- `utils/auth/account.ts`: `changePassword()` (client-side min-length 8 guard → `auth.updateUser({password})`) and `changeEmail()` (trim + non-empty → `auth.updateUser({email})`), both mapping raw Supabase auth errors to friendly, non-leaky messages. +7 unit tests.
+- `AccountSecurity` component: change-password (new + confirm, with mismatch guard) and change-email forms with per-action success/error feedback; rendered on `/account`. Email change tells the user a confirmation link was sent to the new address and completes after they confirm.
+- App-layer only (no migration); own-session calls, no service-role/admin path. Account deletion intentionally not added (deferred).
+- **Re-auth note (AC5):** password change uses the valid session without re-entering the current password (Supabase default). Stronger re-auth was considered and left as a follow-on per the spec — not a blocker.
+- `npm run lint` + `npm run build` + `npm test` clean.
+
 ### File List
+
+**Added:**
+- `utils/auth/account.ts`
+- `components/feature/AccountSecurity.tsx`
+- `tests/integration/auth/account.test.ts`
+
+**Modified:**
+- `app/account/page.tsx`
