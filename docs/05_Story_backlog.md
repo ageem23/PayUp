@@ -1,6 +1,6 @@
 ---
 
-## 📋 3. Complete Story Backlog (Epics 1 - 15)
+## 📋 3. Complete Story Backlog (Epics 1 - 16)
 
 ### docs/05_Epic_1_to_10_Core_Backlog_Archive.md
 ```markdown
@@ -21,6 +21,7 @@
 *   **Epic 13: Streamline the Receipt Experience**: Mobile camera capture, a trip-level receipt list, delete, OCR auto-population of name/tax/tip with a smart 20% default tip, full line/name editing, and a mobile layout that leads with the assignment matrix. *(backlog)*
 *   **Epic 14: Open Access & the Metered Free Tier**: Convert the whitelist from an auth gate into a usage tier — open signup, server-enforced 3-receipts/rolling-7-day free-tier quota (the sole free-tier limit; trips unrestricted), quota visibility with a limit-reached block, and a request-unlimited-access path. *(backlog)*
 *   **Epic 15: Your Account — Profiles & Self-Service Management**: DB-backed profiles (display name, avatar, cross-device theme/accent preferences) and self-service account controls (account menu + logout, change email/password, forgot/reset password). Account deletion and admin tooling deferred. *(backlog)*
+*   **Epic 16: Dependency Security Remediation**: Clear 17 Dependabot alerts — patch transitive deps (glob/postcss/js-yaml), upgrade Next.js 14→15.5.16 and React 18→19 with breaking-change fixes, full regression verification, and stay-current guardrails (Dependabot version updates + CI audit gate). *(backlog)*
 ```
 
 ### Epic 13 detail
@@ -31,3 +32,6 @@ See [docs/prd/epic-14/epic_14_overview.md](docs/prd/epic-14/epic_14_overview.md)
 
 ### Epic 15 detail
 See [docs/prd/epic-15/epic_15_overview.md](docs/prd/epic-15/epic_15_overview.md) for the full Epic 15 story registry and acceptance criteria (Stories 15.1–15.6).
+
+### Epic 16 detail
+See [docs/prd/epic-16/epic_16_overview.md](docs/prd/epic-16/epic_16_overview.md) for the full Epic 16 story registry and acceptance criteria (Stories 16.1–16.4).

@@ -147,3 +147,11 @@ development_status:
   15-5-change-email-password: done
   15-6-forgot-reset-password: done
   epic-15-retrospective: optional
+
+  # Epic 16: Dependency Security Remediation
+  epic-16: done
+  16-1-patch-transitive-deps: done
+  16-2-upgrade-next15-react19: done
+  16-3-post-upgrade-regression-verification: done
+  16-4-stay-current-guardrails: done
+  epic-16-retrospective: optional
