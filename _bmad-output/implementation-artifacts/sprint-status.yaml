@@ -158,7 +158,7 @@ development_status:
 
   # Epic 17: Pre-UAT Polish — Trips, Participants & Layout
   epic-17: in-progress
-  17-1-show-trip-creator: ready-for-dev
+  17-1-show-trip-creator: done
   17-2-mark-trip-completed: ready-for-dev
   17-3-multi-participant-entry: ready-for-dev
   17-4-manage-trip-participants: ready-for-dev

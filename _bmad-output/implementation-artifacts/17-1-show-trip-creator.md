@@ -1,6 +1,6 @@
 # Story 17.1: Show Who Created Each Trip
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -57,8 +57,20 @@ so that I can tell my own trips apart from ones shared with me.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- Migration `0015_profiles_comember_read.sql`: replaced the self-only profiles SELECT policy with one granting `auth.uid() = user_id` **OR** "owns a trip I can see" (via `public.trips` + `is_trip_member()` — no `profiles` re-query, so no RLS recursion). **Manual Supabase apply.**
+- `fetchProfilesByIds()` in `profile.ts`: batch reads display_name/avatar for owner ids; RLS only returns readable rows, unreadable/absent owners fall back.
+- Dashboard: fetches `user_id`, resolves shared-trip creators, renders **"Owned by you"** vs **"Shared by <display name>"** (falls back to "a member" when no display name — AC5). Visibility set unchanged (still owner+member via existing RLS).
+- `npm run lint` + `npm run build` + `npm test` (75 tests) clean.
+
 ### File List
+
+**Added:**
+- `supabase/migrations/0015_profiles_comember_read.sql`
+
+**Modified:**
+- `utils/db/profile.ts`
+- `app/dashboard/page.tsx`

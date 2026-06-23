@@ -7,12 +7,14 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import { ProfileSelector } from "@/components/feature/ProfileSelector";
 import { AccountMenu } from "@/components/feature/AccountMenu";
+import { fetchProfilesByIds, type PublicProfile } from "@/utils/db/profile";
 
 type Trip = {
   id: string;
   name: string;
   created_at: string | null;
   is_settled: boolean | null;
+  user_id: string | null;
 };
 
 function formatDate(value: string | null): string {
@@ -29,6 +31,7 @@ export default function DashboardPage() {
   const { user, loading } = useAuth();
 
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [owners, setOwners] = useState<Map<string, PublicProfile>>(new Map());
   const [loadingTrips, setLoadingTrips] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,22 +43,35 @@ export default function DashboardPage() {
       // (Feature 11.3), so shared trips appear here too.
       const { data, error: fetchError } = await supabase
         .from("trips")
-        .select("id,name,created_at,is_settled")
+        .select("id,name,created_at,is_settled,user_id")
         .order("created_at", { ascending: false });
 
       if (fetchError) {
         setError("Could not load your trips. Please try again.");
         setTrips([]);
+        setOwners(new Map());
       } else {
-        setTrips((data ?? []) as Trip[]);
+        const tripList = (data ?? []) as Trip[];
+        setTrips(tripList);
+        // Resolve the creators of trips shared by others (Story 17.1). The
+        // co-member RLS (0015) only returns profiles the user may read.
+        const sharedOwnerIds = tripList
+          .map((trip) => trip.user_id)
+          .filter((id): id is string => !!id && id !== user?.id);
+        setOwners(
+          sharedOwnerIds.length > 0
+            ? await fetchProfilesByIds(sharedOwnerIds)
+            : new Map(),
+        );
       }
     } catch {
       setError("Could not load your trips. Please try again.");
       setTrips([]);
+      setOwners(new Map());
     } finally {
       setLoadingTrips(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (loading) return;
@@ -119,6 +135,14 @@ export default function DashboardPage() {
                 <span className="text-lg font-medium">{trip.name}</span>
                 <span className="text-sm text-neutral-500">
                   {formatDate(trip.created_at)}
+                </span>
+                <span className="text-xs text-neutral-400">
+                  {trip.user_id === user.id
+                    ? "Owned by you"
+                    : `Shared by ${
+                        owners.get(trip.user_id ?? "")?.displayName?.trim() ||
+                        "a member"
+                      }`}
                 </span>
                 <span
                   className={`mt-auto inline-block w-fit rounded-full px-2 py-0.5 text-xs ${

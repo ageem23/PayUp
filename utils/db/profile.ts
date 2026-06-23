@@ -133,6 +133,42 @@ export async function uploadAvatar(file: File): Promise<UploadAvatarResult> {
   return { ok: true, url };
 }
 
+export type PublicProfile = {
+  userId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+};
+
+/**
+ * Batch-reads the public profile fields (display name / avatar) for the given
+ * user ids (Story 17.1). RLS (migration 0015) only returns rows the caller is
+ * allowed to see — owners of trips they share — so unrelated profiles simply
+ * don't come back. Returns a map keyed by user_id; ids with no readable/extant
+ * profile are absent, and callers fall back to a generic label.
+ */
+export async function fetchProfilesByIds(
+  userIds: string[],
+): Promise<Map<string, PublicProfile>> {
+  const map = new Map<string, PublicProfile>();
+  const ids = Array.from(new Set(userIds)).filter(Boolean);
+  if (ids.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("user_id, display_name, avatar_url")
+    .in("user_id", ids);
+  if (error || !Array.isArray(data)) return map;
+
+  for (const row of data) {
+    map.set(row.user_id as string, {
+      userId: row.user_id as string,
+      displayName: (row.display_name as string | null) ?? null,
+      avatarUrl: (row.avatar_url as string | null) ?? null,
+    });
+  }
+  return map;
+}
+
 export type SaveResult = { ok: true } | { ok: false; error: string };
 
 /**
