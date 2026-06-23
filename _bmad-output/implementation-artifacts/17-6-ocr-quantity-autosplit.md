@@ -1,6 +1,6 @@
 # Story 17.6: Auto-Split Quantity Line Items
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -50,8 +50,20 @@ so that I can assign individual units to different people.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- New pure helper `utils/ocr/expandQuantity.ts` (`expandQuantityLine`): integer quantity ≥ 2 splits the extended price into N items in **integer cents**, handing the leftover cents to the first items so the parts sum to the line total exactly. Fractional / ≤1 / missing / non-numeric → single unchanged full-priced item (no undercount).
+- OCR route: schema gains `quantity` (nullable number); prompt instructs quantity from a **leading first-column number** (default 1, may be fractional) and `price` as the **extended (total)** price; items mapping switched from `.map` to `.flatMap` calling the helper, each result getting a fresh `crypto.randomUUID()`.
+- +5 unit tests covering even (2@$6→3/3), uneven (3@$10→3.34/3.33/3.33), fractional (0.5, 1.5 unchanged), qty 1 / missing / non-numeric (unchanged), and the value-preserving invariant. No DB/client change.
+- `npm run lint` + `npm run build` + `npm test` (88) clean.
+
 ### File List
+
+**Added:**
+- `utils/ocr/expandQuantity.ts`
+- `tests/unit/expandQuantity.test.ts`
+
+**Modified:**
+- `app/api/ocr/route.ts`
