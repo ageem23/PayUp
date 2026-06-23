@@ -37,3 +37,19 @@ export async function patchReceiptName(receiptId: string, name: string) {
   if (error) throw error;
   return assertAffected(data, "name");
 }
+
+/**
+ * Persists who paid a receipt (`paid_by`). Editable after creation so a
+ * mis-recorded payer can be corrected — otherwise the Settle Up ledger credits
+ * the wrong person and reads as "owes/owed the totals" instead of the netted
+ * difference.
+ */
+export async function patchReceiptPaidBy(receiptId: string, paidBy: string) {
+  const { data, error } = await supabase
+    .from("receipts")
+    .update({ paid_by: paidBy })
+    .eq("id", receiptId)
+    .select("id");
+  if (error) throw error;
+  return assertAffected(data, "paid_by");
+}
