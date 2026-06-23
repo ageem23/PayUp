@@ -1,6 +1,6 @@
 # Story 16.2: Upgrade to Next.js 15 & React 19
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -51,8 +51,19 @@ so that the 14 Next.js vulnerabilities are eliminated and we're on current, supp
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- Bumped `next` → `^15.5.16` (resolved **15.5.19**), `react`/`react-dom` → `^19` (**19.2.7**), `@types/react`/`@types/react-dom` → `^19`, `eslint-config-next` → `^15.5.16`. `npm install` → **0 vulnerabilities**.
+- **Pre-upgrade audit drove a clean upgrade with no app-code changes:** no `cookies()`/`headers()`/`draftMode()` anywhere; all dynamic routes are `"use client"` + `useParams()` (the async-`params` change doesn't apply); no `forwardRef` and no bare `useRef()` (React 19 type tightening didn't bite); empty `next.config` (no image-optimizer config to migrate). So no codemod transforms were required.
+- **`next.config.mjs`:** added `outputFileTracingRoot: __dirname` to silence Next 15's workspace-root inference warning (a stray `package-lock.json` in the home dir was being picked as root).
+- `npm run lint` + `npm run build` + `npm test` (75 tests) all green on the new majors; build emits all 13 routes.
+- 16.2 is code-complete; final sign-off is Story 16.3 (regression verification).
+
 ### File List
+
+**Modified:**
+- `package.json`
+- `package-lock.json`
+- `next.config.mjs`
