@@ -1,6 +1,6 @@
 # Story 15.4: Preferences That Follow the User
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -51,8 +51,23 @@ so that I don't have to reconfigure them everywhere.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- Migration `0014_profile_preferences.sql`: `theme` + `accent_color` columns (nullable → "use default") + a guarded `profiles_theme_check` (light/dark). **Manual Supabase apply.**
+- `profile.ts`: `fetchProfile` now returns `theme`/`accentColor`; new `savePreferences({theme?,accentColor?})` upserts only the provided fields and is a no-op when signed out (best-effort; never throws).
+- `ThemeContext` + `AccentColorContext`: keep the localStorage read first (no flash), then reconcile with the DB once the profile loads; `setTheme`/`setAccent` write localStorage **and** the profile. DB is source of truth; localStorage is the cache (AC1–AC3).
+- Signed-out / no-profile → `fetchProfile` null + `savePreferences` no-op → defaults, no errors (AC4). `ProfileSelector` UX unchanged — only the persistence layer beneath it (AC5).
+- `npm run lint` + `npm run build` + `npm test` clean (66 tests).
+
 ### File List
+
+**Added:**
+- `supabase/migrations/0014_profile_preferences.sql`
+
+**Modified:**
+- `utils/db/profile.ts`
+- `context/ThemeContext.tsx`
+- `context/AccentColorContext.tsx`
+- `tests/integration/db/profile.test.ts`

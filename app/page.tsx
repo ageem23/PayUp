@@ -18,7 +18,9 @@ export default function LoginPage() {
   const { user, loading: authLoading, signIn, signUp, signInWithGoogle } =
     useAuth();
 
-  const [mode, setMode] = useState<Mode>("login");
+  // `null` until the user chooses Login or Register — the email/password fields
+  // stay hidden until then, keeping Google as the prominent default path.
+  const [mode, setMode] = useState<Mode | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,6 +33,12 @@ export default function LoginPage() {
       router.replace(postLoginTarget());
     }
   }, [authLoading, user, router]);
+
+  // Pick (or switch to) an email mode; revealing the form clears any stale error.
+  const chooseMode = (next: Mode) => {
+    setMode(next);
+    setError(null);
+  };
 
   const handleGoogle = async () => {
     setLoading(true);
@@ -46,6 +54,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!mode) return;
     setLoading(true);
     setError(null);
 
@@ -66,39 +75,19 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-sm rounded-lg border border-neutral-300 p-6 shadow-sm">
-        <h1 className="mb-6 text-center text-2xl font-semibold">PayUp</h1>
-
-        <div className="mb-6 flex rounded-md border border-neutral-300 p-1 text-sm">
-          <button
-            type="button"
-            onClick={() => setMode("login")}
-            aria-pressed={mode === "login"}
-            className={`flex-1 rounded px-3 py-1.5 ${
-              mode === "login" ? "bg-foreground text-background" : ""
-            }`}
-          >
-            Login
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("register")}
-            aria-pressed={mode === "register"}
-            className={`flex-1 rounded px-3 py-1.5 ${
-              mode === "register" ? "bg-foreground text-background" : ""
-            }`}
-          >
-            Register
-          </button>
-        </div>
+      <div className="w-full max-w-sm rounded-lg border border-neutral-300 p-6 shadow-sm dark:border-neutral-700">
+        <h1 className="text-center text-3xl font-bold tracking-tight">PayUp</h1>
+        <p className="mb-6 mt-1 text-center text-sm text-neutral-500 dark:text-neutral-400">
+          Good food, good friends, no awkward math.
+        </p>
 
         <button
           type="button"
           onClick={handleGoogle}
           disabled={loading}
-          className="mb-4 flex w-full items-center justify-center gap-2 rounded border border-neutral-300 px-4 py-2 font-medium hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          className="flex w-full items-center justify-center gap-2 rounded-md border border-neutral-300 px-4 py-2.5 font-medium shadow-sm hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+          <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
             <path
               fill="#4285F4"
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"
@@ -119,61 +108,93 @@ export default function LoginPage() {
           Continue with Google
         </button>
 
-        <div className="mb-4 flex items-center gap-3 text-xs text-neutral-400">
+        <div className="my-4 flex items-center gap-3 text-xs text-neutral-400">
           <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
-          or
+          or use email
           <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1 text-sm">
-            Email
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-              autoComplete="email"
-              autoCapitalize="none"
-              inputMode="email"
-              className="rounded border border-neutral-300 bg-transparent px-3 py-2"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1 text-sm">
-            Password
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              className="rounded border border-neutral-300 bg-transparent px-3 py-2"
-            />
-          </label>
-
-          {error ? (
-            <p role="alert" className="text-sm text-red-600">
-              {error}
-            </p>
-          ) : null}
-
+        <div className="flex rounded-md border border-neutral-300 p-1 text-sm dark:border-neutral-700">
           <button
-            type="submit"
-            disabled={loading}
-            className="rounded bg-foreground px-4 py-2 font-medium text-background disabled:opacity-50"
+            type="button"
+            onClick={() => chooseMode("login")}
+            aria-pressed={mode === "login"}
+            className={`flex-1 rounded px-3 py-1.5 ${
+              mode === "login" ? "bg-foreground text-background" : ""
+            }`}
           >
-            {loading
-              ? "Please wait…"
-              : mode === "login"
-                ? "Log in"
-                : "Create account"}
+            Log in
           </button>
-        </form>
+          <button
+            type="button"
+            onClick={() => chooseMode("register")}
+            aria-pressed={mode === "register"}
+            className={`flex-1 rounded px-3 py-1.5 ${
+              mode === "register" ? "bg-foreground text-background" : ""
+            }`}
+          >
+            Register
+          </button>
+        </div>
+
+        {error ? (
+          <p role="alert" className="mt-4 text-sm text-red-600">
+            {error}
+          </p>
+        ) : null}
+
+        {mode ? (
+          <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+            <label className="flex flex-col gap-1 text-sm">
+              Email
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                autoFocus
+                autoComplete="email"
+                autoCapitalize="none"
+                inputMode="email"
+                className="rounded border border-neutral-300 bg-transparent px-3 py-2 dark:border-neutral-700"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm">
+              Password
+              <input
+                id="password"
+                name="password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                className="rounded border border-neutral-300 bg-transparent px-3 py-2 dark:border-neutral-700"
+              />
+            </label>
+
+            {error ? (
+              <p role="alert" className="text-sm text-red-600">
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded bg-foreground px-4 py-2 font-medium text-background disabled:opacity-50"
+            >
+              {loading
+                ? "Please wait…"
+                : mode === "login"
+                  ? "Log in"
+                  : "Create account"}
+            </button>
+          </form>
+        ) : null}
       </div>
     </main>
   );

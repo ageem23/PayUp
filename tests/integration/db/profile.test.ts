@@ -4,6 +4,7 @@
 import {
   fetchProfile,
   updateDisplayName,
+  savePreferences,
   DISPLAY_NAME_MAX,
 } from "@/utils/db/profile";
 
@@ -78,6 +79,8 @@ describe("fetchProfile", () => {
     await expect(fetchProfile()).resolves.toEqual({
       displayName: "Bob",
       avatarUrl: "https://x/y.png",
+      theme: null,
+      accentColor: null,
     });
   });
 
@@ -85,5 +88,24 @@ describe("fetchProfile", () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: new Error("boom") });
 
     await expect(fetchProfile()).resolves.toBeNull();
+  });
+});
+
+describe("savePreferences", () => {
+  it("upserts only the provided preference fields", async () => {
+    mockUpsert.mockResolvedValue({ error: null });
+
+    await savePreferences({ theme: "dark", accentColor: "emerald" });
+    expect(mockUpsert).toHaveBeenCalledWith(
+      { user_id: "u1", theme: "dark", accent_color: "emerald" },
+      { onConflict: "user_id" },
+    );
+  });
+
+  it("is a no-op when signed out (preferences stay cached locally)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } });
+
+    await savePreferences({ theme: "dark" });
+    expect(mockUpsert).not.toHaveBeenCalled();
   });
 });
