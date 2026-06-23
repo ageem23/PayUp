@@ -139,7 +139,7 @@ development_status:
   epic-14-retrospective: optional
 
   # Epic 15: Your Account — Profiles & Self-Service Management
-  epic-15: in-progress
+  epic-15: done
   15-1-account-menu-logout: done
   15-2-profiles-table-display-name: done
   15-3-profile-avatar: done
