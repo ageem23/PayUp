@@ -1,6 +1,6 @@
 # Story 17.5: Consistent Receipt Layout
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -43,8 +43,16 @@ so that the experience is consistent across devices.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- `ReceiptSplitView`: replaced the `lg:grid-cols-[16rem_1fr]` + `order-*` layout with a single `flex flex-col` — matrix area first, fees/total summary below, all breakpoints (removed the now-unneeded order utilities introduced in 13.7).
+- Receipt detail page: changed the image/content `lg:grid-cols-2` to `flex flex-col` so the image stacks above the split view on all breakpoints.
+- Layout-only; assignment, proportional fees, and totals unchanged. `npm run lint` + `npm run build` + `npm test` (80) clean.
+
 ### File List
+
+**Modified:**
+- `components/feature/ReceiptSplitView.tsx`
+- `app/trips/[id]/receipts/[receiptId]/page.tsx`
