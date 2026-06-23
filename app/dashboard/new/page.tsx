@@ -9,6 +9,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
+import { parseParticipantInput, addParticipants } from "@/utils/participants";
 
 export default function NewTripPage() {
   const router = useRouter();
@@ -28,9 +29,11 @@ export default function NewTripPage() {
   }, [loading, user, router]);
 
   const addParticipant = () => {
-    const name = participantInput.trim();
-    if (!name) return;
-    setParticipants((prev) => (prev.includes(name) ? prev : [...prev, name]));
+    // Space-separated entry: each token becomes a participant (Story 17.3).
+    // The editable chips below let the user fix an over-split multi-word name.
+    const names = parseParticipantInput(participantInput);
+    if (names.length === 0) return;
+    setParticipants((prev) => addParticipants(prev, names));
     setParticipantInput("");
   };
 
@@ -115,7 +118,7 @@ export default function NewTripPage() {
                 onChange={(event) => setParticipantInput(event.target.value)}
                 onKeyDown={handleParticipantKeyDown}
                 autoCapitalize="words"
-                placeholder="Add a name, press Enter"
+                placeholder="Add names (space-separated), press Enter"
                 className="flex-1 rounded border border-neutral-300 bg-transparent px-3 py-2"
               />
               <button

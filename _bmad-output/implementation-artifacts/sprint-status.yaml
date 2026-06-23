@@ -160,7 +160,7 @@ development_status:
   epic-17: in-progress
   17-1-show-trip-creator: done
   17-2-mark-trip-completed: done
-  17-3-multi-participant-entry: ready-for-dev
+  17-3-multi-participant-entry: done
   17-4-manage-trip-participants: ready-for-dev
   17-5-consistent-receipt-layout: ready-for-dev
   17-6-ocr-quantity-autosplit: ready-for-dev

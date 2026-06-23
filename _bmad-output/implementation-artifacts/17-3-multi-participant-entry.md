@@ -1,6 +1,6 @@
 # Story 17.3: Quick Multi-Participant Entry
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -42,8 +42,19 @@ so that I don't have to add them one at a time.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- New `utils/participants.ts`: `parseParticipantInput` (split on `\s+`, trim, drop empties) + `addParticipants` (case-insensitive dedupe, existing casing wins). Pure, +5 unit tests; reused by 17.4.
+- New-trip form `addParticipant` now parses space-separated input into multiple chips and merges with dedupe; the existing editable chips let the user fix an over-split multi-word name (AC3/AC4). Placeholder updated. Submit uses the reviewed set unchanged.
+- Client-only; no schema/API change. `npm run lint` + `npm run build` + `npm test` (80) clean.
+
 ### File List
+
+**Added:**
+- `utils/participants.ts`
+- `tests/unit/participants.test.ts`
+
+**Modified:**
+- `app/dashboard/new/page.tsx`
