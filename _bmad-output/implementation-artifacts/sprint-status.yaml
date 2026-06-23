@@ -155,3 +155,13 @@ development_status:
   16-3-post-upgrade-regression-verification: done
   16-4-stay-current-guardrails: done
   epic-16-retrospective: optional
+
+  # Epic 17: Pre-UAT Polish — Trips, Participants & Layout
+  epic-17: in-progress
+  17-1-show-trip-creator: ready-for-dev
+  17-2-mark-trip-completed: ready-for-dev
+  17-3-multi-participant-entry: ready-for-dev
+  17-4-manage-trip-participants: ready-for-dev
+  17-5-consistent-receipt-layout: ready-for-dev
+  17-6-ocr-quantity-autosplit: ready-for-dev
+  epic-17-retrospective: optional

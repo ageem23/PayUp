@@ -1,6 +1,6 @@
 ---
 
-## 📋 3. Complete Story Backlog (Epics 1 - 16)
+## 📋 3. Complete Story Backlog (Epics 1 - 17)
 
 ### docs/05_Epic_1_to_10_Core_Backlog_Archive.md
 ```markdown
@@ -22,6 +22,7 @@
 *   **Epic 14: Open Access & the Metered Free Tier**: Convert the whitelist from an auth gate into a usage tier — open signup, server-enforced 3-receipts/rolling-7-day free-tier quota (the sole free-tier limit; trips unrestricted), quota visibility with a limit-reached block, and a request-unlimited-access path. *(backlog)*
 *   **Epic 15: Your Account — Profiles & Self-Service Management**: DB-backed profiles (display name, avatar, cross-device theme/accent preferences) and self-service account controls (account menu + logout, change email/password, forgot/reset password). Account deletion and admin tooling deferred. *(backlog)*
 *   **Epic 16: Dependency Security Remediation**: Clear 17 Dependabot alerts — patch transitive deps (glob/postcss/js-yaml), upgrade Next.js 14→15.5.16 and React 18→19 with breaking-change fixes, full regression verification, and stay-current guardrails (Dependabot version updates + CI audit gate). *(backlog)*
+*   **Epic 17: Pre-UAT Polish — Trips, Participants & Layout**: Show who created each trip (co-member profile read), mark-completed via `is_settled` + dashboard toggle, space-separated bulk participant entry, in-trip participant add/remove (blocked when referenced), a consistent single-column receipt layout (image → matrix → fees) across breakpoints, and OCR quantity auto-split (expand multi-quantity lines, total-preserving). *(backlog)*
 ```
 
 ### Epic 13 detail
@@ -35,3 +36,6 @@ See [docs/prd/epic-15/epic_15_overview.md](docs/prd/epic-15/epic_15_overview.md)
 
 ### Epic 16 detail
 See [docs/prd/epic-16/epic_16_overview.md](docs/prd/epic-16/epic_16_overview.md) for the full Epic 16 story registry and acceptance criteria (Stories 16.1–16.4).
+
+### Epic 17 detail
+See [docs/prd/epic-17/epic_17_overview.md](docs/prd/epic-17/epic_17_overview.md) for the full Epic 17 story registry and acceptance criteria (Stories 17.1–17.6).
