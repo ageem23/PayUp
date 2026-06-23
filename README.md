@@ -1,136 +1,148 @@
-# ⚡ Collaborative AI Receipt Splitter (Greenfield v3.0)
+<p align="center">
+  <img src="./public/banner.png" alt="PayUp — good food, good friends, no awkward math" width="680" />
+</p>
 
-An intuitive, mobile-responsive web platform designed to completely eliminate the social friction and calculation errors of group expense sharing. Powered by a denormalized PostgreSQL/Supabase engine, this platform utilizes automated OCR ingestion to convert physical receipt snapshots into live, multi-user assignment grids that sync instantly across clients.
+<h1 align="center">PayUp</h1>
 
----
+<p align="center">
+  <em>Good food, good friends, no awkward math.</em>
+</p>
 
-## 🏗️ Core Architectural Strategy (v3.0 Schema)
-
-To maximize performance, avoid intensive multi-table relational database joins, and support high-throughput real-time websocket broadcasting, this application treats line items and user assignments as **first-class document components nested directly within JSONB structures**. 
-
-There are no standalone relational tables for individual line items or user check assignments. The system state is tracked across four core physical matrices:
-
-### 📊 Entity Database Schema
-[allowed_users] <--- Security Whitelist Layer
-|
-v
-[trips] --------> [trip_members] (Junction Token Mapping)
-|
-v
-[receipts] -------> .processed_data (JSONB Ingested Line Items)
-.split_among    (JSONB Active Checkbox Matrix)
-
-1.  **`public.allowed_users`**: Closed-beta security whitelist mapping authorized registration emails.
-2.  **`public.trips`**: Root trip workspaces storing attendee name arrays directly inside a flat `participants` JSONB column (`["Mathieu", "Winston", "Alice"]`).
-3.  **`public.receipts`**: Core ledger record storing scanned items inside `processed_data` and active consumer selections inside `split_among`.
-4.  **`public.trip_members`**: Security junction table granting read/write authorization values to temporary anonymous or registered collaborators via Row Level Security (RLS).
+<p align="center">
+  <a href="https://pay-up-red-five.vercel.app/"><strong>▶&nbsp; Live demo</strong></a>
+  &nbsp;·&nbsp;
+  <a href="./HELP.md">User guide</a>
+</p>
 
 ---
 
-## ⚡ Real-Time Auto-Save Synchronization Flow
+PayUp takes a photo of a restaurant bill and works out who owes whom. Snap the
+receipt, check off who shared what, and PayUp splits it — tax and tip included —
+then shows everyone the simplest way to settle up. Trips are collaborative: share
+a link and everyone assigns their own items, live.
 
-This application completely abandons traditional manual form-submission or "Save Changes" button patterns. Interaction states are entirely fluid and event-driven:
+## Features
 
-User A (Checks Box) ---> Optimistic UI Update ---> Supabase Database Mutation
-|
-v
-Realtime Channel Broadcast
-(receipt-changes:${id})
-|
-v
-User B (UI Updates Instantly) <----------------- Client Hook Reception
+- **📸 Receipt scanning** — take a photo or upload an image and Google Gemini OCR
+  extracts the line items, and (when legible) the merchant, tax, and tip.
+- **🔢 Quantity auto-split** — a line like `3 × Taco $10.00` is expanded into three
+  assignable items at cent-exact prices, so each unit can go to a different person.
+- **✅ Assignment matrix** — a checkbox grid for marking who shared each item;
+  shared items are divided, solo items stay with one person.
+- **➗ Proportional tax & tip** — fees are spread across people in proportion to what
+  they ordered, reconciled to the exact cent.
+- **🤝 Settle up** — balances across every receipt in a trip are reduced to the
+  fewest possible payments via a debt-minimization pass.
+- **⚡ Real-time collaboration** — edits broadcast over Supabase Realtime so everyone
+  in a trip sees changes instantly.
+- **🔗 Magic-link invites** — share a trip link; friends sign in (or get a guest
+  session) and join as members who can edit receipts.
+- **👤 Profiles & preferences** — display name, avatar, and a theme/accent color that
+  follow you across devices.
+- **🧭 Trip management** — quick multi-participant entry, in-trip participant editing
+  (with a guard against removing someone still referenced by a receipt), and marking
+  a trip **completed** to tuck it out of the active dashboard.
+- **🆓 Free tier** — open sign-up with up to **3 receipts per rolling 7 days**, plus an
+  in-app request for unlimited access.
 
-* **Silent Guest Onboarding**: Unauthenticated users clicking a valid travel invitation token are silently provisioned a session via `supabase.auth.signInAnonymously()`.
-* **Security Isolation (RLS)**: Secure rows are hardened at the PostgreSQL layer. Anonymous and registered members can only access or mutate fields if their active token is explicitly registered inside the corresponding `trip_members` map.
-* **Precision Multipliers Math Engine**: Global tax figures and tips are calculated proportionally based on fractional consumption down to exact single-cent thresholds (`$0.01`). Rounding remainders are handled deterministically via a remainder-distribution algorithm to maintain mathematical balance across the ledger.
-* **Network Debt-Graph Optimization**: Cross-receipt balances are aggregated and compiled through a greedy cash-flow minimization graph network routine, instantly reducing complex peer-to-peer debts into the absolute minimum number of total transactional instructions.
+See [`HELP.md`](./HELP.md) for the full user guide.
 
----
+## Tech stack
 
-## 📁 Repository Directory Structure
+| Layer | Choice |
+| --- | --- |
+| Framework | [Next.js 15](https://nextjs.org/) (App Router) · React 19 · TypeScript |
+| Styling | Tailwind CSS 3 |
+| Backend | [Supabase](https://supabase.com/) — Postgres, Auth, Storage, Realtime |
+| OCR | [Google Gemini](https://ai.google.dev/) (`@google/genai`) via a server route |
+| Auth | Supabase Auth — Google OAuth + email/password, plus anonymous guest sessions |
+| Tests | Jest |
+| Hosting | Vercel |
 
-The project follows a clean Next.js 14+ App Router directory footprint optimized for seamless modular component portability:
+## Getting started
+
+> Requires Node.js 20+ and a Supabase project. OCR additionally needs a Google
+> Gemini API key.
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Configure environment
+cp .env.example .env.local   # then fill in real values (see below)
+
+# 3. Run the dev server
+npm run dev                  # http://localhost:3001
+```
+
+To verify the build is healthy independent of auth, hit the unguarded health-check
+route at [http://localhost:3001/canary](http://localhost:3001/canary).
+
+### Environment variables
+
+Copy `.env.example` to `.env.local` (gitignored) and set:
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase anon/public key |
+| `GEMINI_API_KEY` | for OCR | Server-only Google Gemini key (never exposed to the client) |
+| `GEMINI_OCR_MODEL` | optional | Override the OCR model (defaults to `gemini-flash-lite-latest`) |
+
+Google OAuth is configured in the Supabase Dashboard (no extra env var) — see the
+notes in `.env.example`.
+
+### Database migrations
+
+SQL migrations live in [`supabase/migrations/`](./supabase/migrations) and are
+applied **manually** in the Supabase SQL editor (in filename order). They're
+idempotent; each migration's header documents what it does.
+
+## Scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Start the dev server on port **3001** |
+| `npm run build` | Production build |
+| `npm start` | Serve the production build |
+| `npm run lint` | ESLint (Next.js config) |
+| `npm test` | Jest unit tests |
+
+CI runs **lint + build + test** on every push; please keep all three green before
+opening a PR.
+
+## Project structure
 
 ```text
-├── app/                      # Dynamic page segments, layouts, and route definitions
-│   ├── canary/               # Static system smoke-test path (Health Check Verification)
-│   ├── dashboard/            # Workspace management views and Trip initialization setup
-│   ├── invite/[token]/       # Dynamic token-redemption and anonymous authorization endpoints
-│   ├── trips/[id]/           # Main Trip details hub and Settle-Up Ledger view
-│   │   └── receipts/[id]/    # Core Real-Time Interactive Matrix Splitting panel
-│   ├── unauthorized/         # Access rejection clearance warning landing screen
-│   ├── globals.css           # Global core Tailwind visual styles
-│   └── layout.tsx            # Global app view wrappers and contextual initialization layers
-├── components/               # Presentation layout modules separation matrix
-│   ├── feature/              # Stateful structural views (Matrix rows, sharing modals)
-│   └── ui/                   # Stateless presentational atomic building blocks (Buttons, inputs)
-├── context/                  # Shared React global state providers (Auth, Theme, Realtime)
-├── docs/                     # Full project lifecycle backlog specification shards
-│   ├── epics/                # Actionable user story sheets segmented from Epic 1 to 12
-│   └── 04_System_Architecture_Master_v3.md   # Architectural technical source-of-truth
-├── types/                    # Prescriptive unified TypeScript global type system metrics
-└── utils/                    # Pure deterministic algorithms (Debt optimization, penny calculations)
-
+app/                       # Next.js App Router — pages, layouts, API routes
+├── api/ocr/               # Server route: Gemini receipt OCR + quantity expansion
+├── canary/                # Unguarded health-check route
+├── dashboard/             # Trip list + new-trip form
+├── invite/[token]/        # Magic-link redemption → guest/member onboarding
+├── trips/[id]/            # Trip hub, participants, settle-up
+│   └── receipts/[id]/     # Receipt detail: image + assignment matrix + fees
+└── unauthorized/          # Access-rejection screen
+components/
+├── feature/               # Stateful views (matrix, settle-up, invite manager…)
+└── ui/                    # Stateless presentational building blocks
+context/                   # React providers (Auth, Theme, Realtime)
+supabase/migrations/       # SQL migrations (applied manually)
+tests/                     # Jest unit tests
+types/                     # Shared TypeScript types
+utils/                     # Pure logic — OCR expansion, penny math, debt minimizer, DB helpers
+docs/                      # Product/architecture docs and per-epic specs
 ```
----
 
-## Local Development Setup & Initialization
-Follow these steps to spin up the codebase environment locally on your workstation:
+## Documentation
 
-1. Project Scaffolding Ingress
-Clone the repository to your machine, enter the root directory, and initialize the system packages:
+- **User guide:** [`HELP.md`](./HELP.md)
+- **Architecture:** [`docs/04_System_Architecture_Master_v3.md`](./docs/04_System_Architecture_Master_v3.md)
+- **Product/epic specs:** [`docs/docs/prd/`](./docs/docs/prd)
 
-Bash
-npm install
-2. Configure Local Environment Variables
-Create a local tracking environment configurations file named .env.local inside the root path folder and seed your project keys matching the structure documented in .env.example:
+## Questions or problems?
 
-Plaintext
-NEXT_PUBLIC_SUPABASE_URL=[https://your-project-id.supabase.co](https://your-project-id.supabase.co)
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key-string
-3. Spin Up Local Run Timers
-Launch the Next.js local development server instance:
+Open an issue on [GitHub](https://github.com/ageem23/PayUp/issues).
 
-Bash
-npm run dev
-Open your browser and navigate to http://localhost:3000. To verify the core build health independently of auth, access the canary indicator path straight at http://localhost:3000/canary.
+## License
 
-4. Code Quality & Integration Sweep Checks
-Before submitting pull requests or merging branches, execute validation scripts to confirm codebase health and strict type-safety:
-
-Bash
-# Run lint optimization audits
-npm run lint
-
-# Compile production code build verification
-npm run build
-📋 Comprehensive Backlog Tracking Index
-Development progress across our 12 operational core project epics is sharded and tracked right inside the filesystem for transparency. To check out exact subtask requirements, implementation logs, or acceptance criteria boundaries, reference the respective planning sheets directly:
-
-docs/epics/epic-01-scaffolding/ ── Repo Setup & CI/CD Verification
-
-docs/epics/epic-02-auth-whitelist/ ── Access Gatekeeper Whitelist
-
-docs/epics/epic-03-trip-management/ ── Trip Scopes & Participant Seeding
-
-docs/epics/epic-04-receipt-ocr/ ── Supabase Media Buckets & Asset Storage
-
-docs/epics/epic-05-matrix-rendering/ ── Matrix Presentation Data Layouts
-
-docs/epics/epic-06-assignment-mutations/ ── Nested JSONB Matrix Checkbox Updates
-
-docs/epics/epic-07-precision-math/ ── Proportional Penny Math Calc Engines
-
-docs/epics/epic-08-balancing-ledger/ ── Greedy Network Cash Flow Optimization
-
-docs/epics/epic-09-profiles-preferences/ ── Dark-Theme Persistence & Profile Badges
-
-docs/epics/epic-10-activity-auditing/ ── Audit Timelines & Remote Cell Animations
-
-docs/epics/epic-11-magic-links/ ── Secure UUID Invitation Loop Redemptions
-
-docs/epics/epic-12-realtime-collaboration/ ── Anonymous Sign-Ins & Real-Time Socket Channels
-
-⚖️ License
-Internal Development Asset Workspace ─ All Rights Reserved.
-
+Internal development asset — all rights reserved.
