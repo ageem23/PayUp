@@ -1,0 +1,28 @@
+# Dependabot version updates (Epic 16, Story 16.4).
+# Security *alerts* were already on; this adds routine *version-update* PRs so
+# dependencies don't silently drift back into known vulnerabilities. Minor/patch
+# updates are grouped into one PR per ecosystem to avoid PR spam.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Keep the GitHub Actions used in CI current (also clears the Node-20
+  # runner deprecation notices over time).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        update-types:
+          - "minor"
+          - "patch"

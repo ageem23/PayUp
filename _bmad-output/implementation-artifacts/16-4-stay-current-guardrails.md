@@ -1,6 +1,6 @@
 # Story 16.4: Stay-Current Guardrails
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -53,8 +53,20 @@ so that we don't silently drift back into known vulnerabilities.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- `.github/dependabot.yml`: weekly **version-update** PRs for the `npm` ecosystem (minor/patch grouped into one PR, limit 5) plus `github-actions` (grouped). Closes the gap where only *security alerts* were on.
+- `.github/workflows/ci.yml`: added a **`npm audit --audit-level=high`** step right after `npm ci` (before lint/build/test), failing the build on new high/critical advisories. Existing `permissions: contents: read` left intact.
+- **AC3 (actionable gate):** baseline is clean after 16.1/16.2 (`npm audit` → 0), so the gate starts green; a comment in `ci.yml` documents the allowlist path (`audit-ci`/`better-npm-audit`) for any future unfixable transitive advisory, instead of lowering the threshold.
+- **AC4 (proven):** the audit step runs in CI on this branch's push; Dependabot version-update PRs begin once the config lands on `main`.
+- Verified locally: `npm audit --audit-level=high` exits 0.
+
 ### File List
+
+**Added:**
+- `.github/dependabot.yml`
+
+**Modified:**
+- `.github/workflows/ci.yml`
