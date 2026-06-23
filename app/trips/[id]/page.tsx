@@ -19,12 +19,19 @@ import {
   type LedgerReceipt,
 } from "@/utils/math/ledgerCompiler";
 import { minimizeDebts } from "@/utils/math/debtMinimizer";
+import {
+  parseParticipantInput,
+  addParticipants,
+  receiptsReferencingParticipant,
+} from "@/utils/participants";
+import { setTripParticipants } from "@/utils/db/tripParticipants";
 
 type Trip = {
   id: string;
   name: string;
   participants: string[] | null;
   user_id: string | null;
+  is_settled: boolean | null;
 };
 
 // The trip page needs both the ledger fields (LedgerReceipt) and the list
@@ -68,7 +75,7 @@ export default function TripHubPage() {
           // member (Feature 11.3), so invited members can open it too.
           supabase
             .from("trips")
-            .select("id,name,participants,user_id")
+            .select("id,name,participants,user_id,is_settled")
             .eq("id", tripId)
             .maybeSingle(),
           supabase
@@ -161,6 +168,77 @@ export default function TripHubPage() {
 
   const isOwner = !!user && !!trip && trip.user_id === user.id;
 
+  // Owner-only completion toggle (Story 17.2), reusing trips.is_settled. The
+  // owner-only trips UPDATE RLS is the authority; the control is hidden for
+  // members.
+  const [savingCompleted, setSavingCompleted] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
+  const toggleCompleted = useCallback(async () => {
+    if (!trip) return;
+    const next = !trip.is_settled;
+    setSavingCompleted(true);
+    setCompletionError(null);
+    try {
+      const { error: updateError } = await supabase
+        .from("trips")
+        .update({ is_settled: next })
+        .eq("id", trip.id)
+        .select("id");
+      if (!updateError) {
+        setTrip((prev) => (prev ? { ...prev, is_settled: next } : prev));
+      } else {
+        setCompletionError("Couldn't update trip status. Please try again.");
+      }
+    } finally {
+      setSavingCompleted(false);
+    }
+  }, [trip]);
+
+  // In-trip participant management (Story 17.4). Owner + members may edit via the
+  // set_trip_participants RPC; removal is blocked while a name is referenced.
+  const [participantInput, setParticipantInput] = useState("");
+  const [savingParticipants, setSavingParticipants] = useState(false);
+  const [participantError, setParticipantError] = useState<string | null>(null);
+
+  const persistParticipants = useCallback(
+    async (next: string[]) => {
+      if (!trip) return;
+      setSavingParticipants(true);
+      setParticipantError(null);
+      const result = await setTripParticipants(trip.id, next);
+      setSavingParticipants(false);
+      if (result.ok) {
+        setTrip((prev) => (prev ? { ...prev, participants: next } : prev));
+      } else {
+        setParticipantError("Couldn't update participants. Please try again.");
+      }
+    },
+    [trip],
+  );
+
+  const addTripParticipants = useCallback(() => {
+    const names = parseParticipantInput(participantInput);
+    if (names.length === 0) return;
+    const next = addParticipants(trip?.participants ?? [], names);
+    setParticipantInput("");
+    void persistParticipants(next);
+  }, [participantInput, trip?.participants, persistParticipants]);
+
+  const removeTripParticipant = useCallback(
+    (name: string) => {
+      const usedIn = receiptsReferencingParticipant(name, receipts);
+      if (usedIn.length > 0) {
+        setParticipantError(
+          `Can't remove ${name} — used in ${usedIn.join(", ")}. Reassign those first.`,
+        );
+        return;
+      }
+      const next = (trip?.participants ?? []).filter((p) => p !== name);
+      void persistParticipants(next);
+    },
+    [receipts, trip?.participants, persistParticipants],
+  );
+
   // Recompute the minimal settle-up transfers whenever the trip's receipts or
   // participant list change. `balanced` is false if the ledger doesn't reconcile
   // to zero — in that case we don't render (misleading) transfers.
@@ -207,12 +285,91 @@ export default function TripHubPage() {
         </Link>
         <AccountMenu />
       </div>
-      <h1 className="mb-2 mt-4 text-2xl font-semibold">{trip.name}</h1>
-      <p className="mb-6 text-sm text-neutral-500">
-        {trip.participants && trip.participants.length > 0
-          ? trip.participants.join(", ")
-          : "No participants"}
-      </p>
+      <div className="mb-2 mt-4 flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-semibold">{trip.name}</h1>
+        {trip.is_settled ? (
+          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800 dark:bg-green-900/40 dark:text-green-300">
+            Completed
+          </span>
+        ) : null}
+        {isOwner ? (
+          <button
+            type="button"
+            onClick={() => void toggleCompleted()}
+            disabled={savingCompleted}
+            className="rounded border border-neutral-300 px-3 py-1 text-sm disabled:opacity-50 dark:border-neutral-700"
+          >
+            {savingCompleted
+              ? "Saving…"
+              : trip.is_settled
+                ? "Mark active"
+                : "Mark completed"}
+          </button>
+        ) : null}
+      </div>
+      {completionError ? (
+        <p role="alert" className="mb-4 text-sm text-red-600">
+          {completionError}
+        </p>
+      ) : null}
+      <section className="mb-6 flex flex-col gap-2">
+        <h2 className="text-sm font-medium text-neutral-500">Participants</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          {(trip.participants ?? []).map((name) => (
+            <span
+              key={name}
+              className="flex items-center gap-1 rounded-full border border-neutral-300 py-0.5 pl-3 pr-1 text-sm dark:border-neutral-700"
+            >
+              {name}
+              <button
+                type="button"
+                onClick={() => removeTripParticipant(name)}
+                disabled={savingParticipants}
+                aria-label={`Remove ${name}`}
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-xs leading-none disabled:opacity-50 dark:bg-neutral-700"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          {(trip.participants ?? []).length === 0 ? (
+            <span className="text-sm text-neutral-400">No participants yet.</span>
+          ) : null}
+        </div>
+        <div className="flex gap-2">
+          <label htmlFor="trip-participant-input" className="sr-only">
+            Add participants
+          </label>
+          <input
+            id="trip-participant-input"
+            type="text"
+            value={participantInput}
+            onChange={(event) => setParticipantInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addTripParticipants();
+              }
+            }}
+            placeholder="Add names (space-separated)"
+            disabled={savingParticipants}
+            className="flex-1 rounded border border-neutral-300 bg-transparent px-3 py-1.5 text-sm dark:border-neutral-700"
+          />
+          <button
+            type="button"
+            onClick={addTripParticipants}
+            disabled={savingParticipants}
+            className="rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50 dark:border-neutral-700"
+          >
+            Add
+          </button>
+        </div>
+        {participantError ? (
+          <p role="alert" className="text-sm text-red-600">
+            {participantError}
+          </p>
+        ) : null}
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Add a receipt</h2>

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { supabase } from "@/utils/supabase/client";
+import { expandQuantityLine } from "@/utils/ocr/expandQuantity";
 
-type RawLine = { name?: unknown; price?: unknown };
+type RawLine = { name?: unknown; price?: unknown; quantity?: unknown };
 type LineItem = { id: string; name: string; price: number };
 
 // Validate the image URL is on the project's Supabase storage host and extract
@@ -135,10 +136,13 @@ export async function POST(request: Request) {
               text:
                 "Extract this receipt as JSON with these fields: " +
                 "`merchant` (the restaurant/store name, or null if not visible); " +
-                "`items` (an array of every purchased line item, each with `name` and a raw numeric `price`); " +
+                "`items` (an array of every purchased line item, each with `name`, a raw numeric `price`, and a `quantity`); " +
                 "`tax` (the tax amount as a raw number, or null if not shown); " +
                 "`tip` (the tip/gratuity amount, or null if not shown); " +
                 "`total` (the grand total, or null if not shown). " +
+                "For each item, take `quantity` ONLY from a leading number in the receipt's first (quantity) column; " +
+                "if that column has no number, use 1. Quantity may be fractional for weight/measure items (e.g. 0.5). " +
+                "Report `price` as the line's EXTENDED (total) price for all units — the right-hand amount — NOT the per-unit price. " +
                 "Use raw numeric values only — strip currency symbols ($, €) and labels like 'Total:'. " +
                 "Do NOT include tax, tip, or grand totals as entries in the `items` array.",
             },
@@ -162,6 +166,7 @@ export async function POST(request: Request) {
                 properties: {
                   name: { type: Type.STRING },
                   price: { type: Type.NUMBER },
+                  quantity: { type: Type.NUMBER, nullable: true },
                 },
                 required: ["name", "price"],
               },
@@ -210,11 +215,20 @@ export async function POST(request: Request) {
     (entry): entry is RawLine => typeof entry === "object" && entry !== null,
   );
 
-  const items: LineItem[] = rawLines.map((line) => ({
-    id: crypto.randomUUID(),
-    name: typeof line.name === "string" ? line.name : "",
-    price: normalizePrice(line.price),
-  }));
+  // Expand multi-quantity lines server-side (Story 17.6): a whole quantity ≥ 2
+  // becomes that many items, splitting the EXTENDED price in cents so the parts
+  // sum back to the line total. Fractional / ≤1 / missing quantities pass through
+  // unchanged — never an undercount. Each resulting item gets a fresh id.
+  const items: LineItem[] = rawLines.flatMap((line) => {
+    const name = typeof line.name === "string" ? line.name : "";
+    const price = normalizePrice(line.price);
+    const quantity = typeof line.quantity === "number" ? line.quantity : null;
+    return expandQuantityLine(name, price, quantity).map((item) => ({
+      id: crypto.randomUUID(),
+      name: item.name,
+      price: item.price,
+    }));
+  });
 
   const merchant =
     typeof parsed.merchant === "string" && parsed.merchant.trim()

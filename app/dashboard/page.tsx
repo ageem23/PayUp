@@ -7,12 +7,14 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import { ProfileSelector } from "@/components/feature/ProfileSelector";
 import { AccountMenu } from "@/components/feature/AccountMenu";
+import { fetchProfilesByIds, type PublicProfile } from "@/utils/db/profile";
 
 type Trip = {
   id: string;
   name: string;
   created_at: string | null;
   is_settled: boolean | null;
+  user_id: string | null;
 };
 
 function formatDate(value: string | null): string {
@@ -29,8 +31,11 @@ export default function DashboardPage() {
   const { user, loading } = useAuth();
 
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [owners, setOwners] = useState<Map<string, PublicProfile>>(new Map());
   const [loadingTrips, setLoadingTrips] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Completed trips (is_settled) are hidden by default (Story 17.2).
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const loadTrips = useCallback(async () => {
     setLoadingTrips(true);
@@ -40,22 +45,35 @@ export default function DashboardPage() {
       // (Feature 11.3), so shared trips appear here too.
       const { data, error: fetchError } = await supabase
         .from("trips")
-        .select("id,name,created_at,is_settled")
+        .select("id,name,created_at,is_settled,user_id")
         .order("created_at", { ascending: false });
 
       if (fetchError) {
         setError("Could not load your trips. Please try again.");
         setTrips([]);
+        setOwners(new Map());
       } else {
-        setTrips((data ?? []) as Trip[]);
+        const tripList = (data ?? []) as Trip[];
+        setTrips(tripList);
+        // Resolve the creators of trips shared by others (Story 17.1). The
+        // co-member RLS (0015) only returns profiles the user may read.
+        const sharedOwnerIds = tripList
+          .map((trip) => trip.user_id)
+          .filter((id): id is string => !!id && id !== user?.id);
+        setOwners(
+          sharedOwnerIds.length > 0
+            ? await fetchProfilesByIds(sharedOwnerIds)
+            : new Map(),
+        );
       }
     } catch {
       setError("Could not load your trips. Please try again.");
       setTrips([]);
+      setOwners(new Map());
     } finally {
       setLoadingTrips(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (loading) return;
@@ -74,19 +92,34 @@ export default function DashboardPage() {
     );
   }
 
+  // Completed (is_settled) trips are hidden unless "Show completed" is on.
+  const visibleTrips = showCompleted
+    ? trips
+    : trips.filter((trip) => !trip.is_settled);
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl p-4 sm:p-6">
       <div className="mb-4 flex justify-end">
         <AccountMenu />
       </div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Your trips</h1>
-        <Link
-          href="/dashboard/new"
-          className="rounded bg-foreground px-4 py-2 text-sm font-medium text-background"
-        >
-          + Create New Trip
-        </Link>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-sm text-neutral-500">
+            <input
+              type="checkbox"
+              checked={showCompleted}
+              onChange={(event) => setShowCompleted(event.target.checked)}
+            />
+            Show completed
+          </label>
+          <Link
+            href="/dashboard/new"
+            className="rounded bg-foreground px-4 py-2 text-sm font-medium text-background"
+          >
+            + Create New Trip
+          </Link>
+        </div>
       </div>
 
       <div className="mb-6">
@@ -108,9 +141,16 @@ export default function DashboardPage() {
             Create your first trip
           </Link>
         </div>
+      ) : visibleTrips.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-neutral-300 p-10 text-center">
+          <p className="text-neutral-600">
+            No active trips. Tick &ldquo;Show completed&rdquo; to see finished
+            ones.
+          </p>
+        </div>
       ) : (
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {trips.map((trip) => (
+          {visibleTrips.map((trip) => (
             <li key={trip.id}>
               <Link
                 href={`/trips/${trip.id}`}
@@ -120,6 +160,14 @@ export default function DashboardPage() {
                 <span className="text-sm text-neutral-500">
                   {formatDate(trip.created_at)}
                 </span>
+                <span className="text-xs text-neutral-400">
+                  {trip.user_id === user.id
+                    ? "Owned by you"
+                    : `Shared by ${
+                        owners.get(trip.user_id ?? "")?.displayName?.trim() ||
+                        "a member"
+                      }`}
+                </span>
                 <span
                   className={`mt-auto inline-block w-fit rounded-full px-2 py-0.5 text-xs ${
                     trip.is_settled
@@ -127,7 +175,7 @@ export default function DashboardPage() {
                       : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
                   }`}
                 >
-                  {trip.is_settled ? "Settled" : "Active"}
+                  {trip.is_settled ? "Completed" : "Active"}
                 </span>
               </Link>
             </li>

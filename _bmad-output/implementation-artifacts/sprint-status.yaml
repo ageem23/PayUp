@@ -1,5 +1,5 @@
 # generated: 2026-06-17
-# last_updated: 2026-06-17
+# last_updated: 2026-06-23
 # project: PayUp
 # project_key: NOKEY
 # tracking_system: file-system
@@ -155,3 +155,13 @@ development_status:
   16-3-post-upgrade-regression-verification: done
   16-4-stay-current-guardrails: done
   epic-16-retrospective: optional
+
+  # Epic 17: Pre-UAT Polish — Trips, Participants & Layout
+  epic-17: done
+  17-1-show-trip-creator: done
+  17-2-mark-trip-completed: done
+  17-3-multi-participant-entry: done
+  17-4-manage-trip-participants: done
+  17-5-consistent-receipt-layout: done
+  17-6-ocr-quantity-autosplit: done
+  epic-17-retrospective: optional
