@@ -172,10 +172,12 @@ export default function TripHubPage() {
   // owner-only trips UPDATE RLS is the authority; the control is hidden for
   // members.
   const [savingCompleted, setSavingCompleted] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
   const toggleCompleted = useCallback(async () => {
     if (!trip) return;
     const next = !trip.is_settled;
     setSavingCompleted(true);
+    setCompletionError(null);
     try {
       const { error: updateError } = await supabase
         .from("trips")
@@ -184,6 +186,8 @@ export default function TripHubPage() {
         .select("id");
       if (!updateError) {
         setTrip((prev) => (prev ? { ...prev, is_settled: next } : prev));
+      } else {
+        setCompletionError("Couldn't update trip status. Please try again.");
       }
     } finally {
       setSavingCompleted(false);
@@ -303,6 +307,11 @@ export default function TripHubPage() {
           </button>
         ) : null}
       </div>
+      {completionError ? (
+        <p role="alert" className="mb-4 text-sm text-red-600">
+          {completionError}
+        </p>
+      ) : null}
       <section className="mb-6 flex flex-col gap-2">
         <h2 className="text-sm font-medium text-neutral-500">Participants</h2>
         <div className="flex flex-wrap items-center gap-2">
@@ -328,7 +337,11 @@ export default function TripHubPage() {
           ) : null}
         </div>
         <div className="flex gap-2">
+          <label htmlFor="trip-participant-input" className="sr-only">
+            Add participants
+          </label>
           <input
+            id="trip-participant-input"
             type="text"
             value={participantInput}
             onChange={(event) => setParticipantInput(event.target.value)}

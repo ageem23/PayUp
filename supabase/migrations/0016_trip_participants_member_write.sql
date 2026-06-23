@@ -20,21 +20,33 @@ begin
     raise exception 'Not authenticated';
   end if;
 
-  -- Owner OR approved member may edit the participant labels. is_trip_member()
-  -- is itself SECURITY DEFINER (0007), so this doesn't depend on the caller's
-  -- own RLS visibility of trip_members.
-  if not exists (
-    select 1 from public.trips t
-    where t.id = p_trip_id
-      and (t.user_id = auth.uid() or public.is_trip_member(t.id))
-  ) then
-    raise exception 'Not authorized to edit this trip';
+  -- Validate caller-supplied input before persisting (this is a SECURITY DEFINER
+  -- entrypoint, so a member could call it directly). Reject a null array or any
+  -- null/blank name so downstream participant logic never sees invalid strings.
+  if p_names is null then
+    raise exception 'Participants list cannot be null';
   end if;
 
-  -- Scoped write: only the participants column changes.
-  update public.trips
+  if exists (
+    select 1
+    from unnest(p_names) as n(name)
+    where n.name is null or btrim(n.name) = ''
+  ) then
+    raise exception 'Participants must be non-empty strings';
+  end if;
+
+  -- Authorization and the scoped write happen in ONE statement (no TOCTOU gap):
+  -- only the participants column changes, and only for the trip owner or an
+  -- approved member. is_trip_member() is itself SECURITY DEFINER (0007), so this
+  -- doesn't depend on the caller's own RLS visibility of trip_members.
+  update public.trips t
     set participants = to_jsonb(p_names)
-    where id = p_trip_id;
+    where t.id = p_trip_id
+      and (t.user_id = auth.uid() or public.is_trip_member(t.id));
+
+  if not found then
+    raise exception 'Not authorized to edit this trip';
+  end if;
 end;
 $$;
 

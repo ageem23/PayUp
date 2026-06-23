@@ -46,13 +46,18 @@ export function receiptsReferencingParticipant(
   participant: string,
   receipts: RefReceipt[],
 ): string[] {
+  // Match case-insensitively: a receipt referencing "alice" must still block
+  // removing the "Alice" chip (names are deduped case-insensitively on entry).
+  const needle = participant.toLowerCase();
   const refs: string[] = [];
   for (const receipt of receipts) {
-    const inPaidBy = receipt.paid_by === participant;
+    const inPaidBy = receipt.paid_by.toLowerCase() === needle;
     const inSplit =
       Array.isArray(receipt.split_among) &&
       receipt.split_among.some((alloc) =>
-        alloc.assigned_participants?.includes(participant),
+        alloc.assigned_participants?.some(
+          (assigned) => assigned.toLowerCase() === needle,
+        ),
       );
     if (inPaidBy || inSplit) {
       refs.push(receipt.name?.trim() || "Untitled receipt");

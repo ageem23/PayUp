@@ -13,6 +13,11 @@
 
 export type ExpandedItem = { name: string; price: number };
 
+// Cap expansion so a bad OCR read (e.g. a huge integer in the quantity column)
+// can't generate an enormous array and exhaust request memory/time. Beyond this,
+// the line passes through unsplit rather than risk a runaway expansion.
+export const MAX_EXPANDABLE_QUANTITY = 200;
+
 export function expandQuantityLine(
   name: string,
   totalPrice: number,
@@ -20,11 +25,13 @@ export function expandQuantityLine(
 ): ExpandedItem[] {
   const total = Number.isFinite(totalPrice) && totalPrice > 0 ? totalPrice : 0;
 
-  // Only a whole quantity ≥ 2 splits; everything else stays one full-priced line.
+  // Only a whole quantity in [2, MAX] splits; everything else (fractional, ≤1,
+  // missing, non-numeric, or implausibly large) stays one full-priced line.
   if (
     typeof quantity !== "number" ||
     !Number.isInteger(quantity) ||
-    quantity < 2
+    quantity < 2 ||
+    quantity > MAX_EXPANDABLE_QUANTITY
   ) {
     return [{ name, price: total }];
   }

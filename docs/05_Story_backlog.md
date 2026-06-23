@@ -38,4 +38,5 @@ See [docs/prd/epic-15/epic_15_overview.md](docs/prd/epic-15/epic_15_overview.md)
 See [docs/prd/epic-16/epic_16_overview.md](docs/prd/epic-16/epic_16_overview.md) for the full Epic 16 story registry and acceptance criteria (Stories 16.1–16.4).
 
 ### Epic 17 detail
+
 See [docs/prd/epic-17/epic_17_overview.md](docs/prd/epic-17/epic_17_overview.md) for the full Epic 17 story registry and acceptance criteria (Stories 17.1–17.6).

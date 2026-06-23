@@ -1,7 +1,10 @@
 /**
  * @jest-environment node
  */
-import { expandQuantityLine } from "@/utils/ocr/expandQuantity";
+import {
+  expandQuantityLine,
+  MAX_EXPANDABLE_QUANTITY,
+} from "@/utils/ocr/expandQuantity";
 
 const sumCents = (items: { price: number }[]) =>
   items.reduce((acc, item) => acc + Math.round(item.price * 100), 0);
@@ -39,6 +42,19 @@ describe("expandQuantityLine", () => {
     expect(expandQuantityLine("Soda", 2.5, undefined)).toEqual([
       { name: "Soda", price: 2.5 },
     ]);
+  });
+
+  it("does NOT split an implausibly large quantity (caps runaway expansion)", () => {
+    expect(expandQuantityLine("Bad OCR", 12, MAX_EXPANDABLE_QUANTITY + 1)).toEqual(
+      [{ name: "Bad OCR", price: 12 }],
+    );
+    expect(expandQuantityLine("Bad OCR", 12, 100000)).toEqual([
+      { name: "Bad OCR", price: 12 },
+    ]);
+    // The cap boundary itself still splits.
+    expect(expandQuantityLine("X", 10, MAX_EXPANDABLE_QUANTITY)).toHaveLength(
+      MAX_EXPANDABLE_QUANTITY,
+    );
   });
 
   it("is value-preserving — the parts always sum to the original line total", () => {

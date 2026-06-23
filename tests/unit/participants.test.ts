@@ -74,4 +74,16 @@ describe("receiptsReferencingParticipant", () => {
   it("returns empty when the name is unreferenced", () => {
     expect(receiptsReferencingParticipant("Zoe", receipts)).toEqual([]);
   });
+
+  it("matches case-insensitively (receipt 'alice' still blocks removing 'Alice')", () => {
+    const mixed = [
+      {
+        name: "Brunch",
+        paid_by: "alice",
+        split_among: [{ assigned_participants: ["BOB"] }],
+      },
+    ];
+    expect(receiptsReferencingParticipant("Alice", mixed)).toEqual(["Brunch"]);
+    expect(receiptsReferencingParticipant("bob", mixed)).toEqual(["Brunch"]);
+  });
 });
