@@ -38,8 +38,20 @@ A **trip** groups the receipts you want to split together — a dinner, a weeken
 
 1. From your **Dashboard**, choose **New Trip**.
 2. Give it a **name** (e.g. "Saturday dinner").
-3. Add the **participants** — the people sharing the bill.
+3. Add the **participants** — the people sharing the bill. You can type several at
+   once separated by spaces; each name becomes a removable chip you can fix or
+   delete before creating the trip.
 4. Open the trip to start adding receipts.
+
+Your **Dashboard** shows your own trips alongside any a friend shared with you
+(labeled *Shared by <name>*). Once a trip is finished you can mark it **completed**
+to tuck it away — see [Settling up](#5-settling-up).
+
+**Managing participants later:** open a trip and use its **Participants** section
+to add or remove people at any time — the trip owner and members can both edit the
+list. If you try to remove someone who's already set as a payer or assigned to an
+item, PayUp blocks it and names the receipt to fix first; reassign those, then
+remove.
 
 **Adding a receipt to a trip:**
 
@@ -79,6 +91,7 @@ Scans aren't perfect, so every receipt is fully editable. Open a receipt to make
 - **Delete a line item** that isn't real. (Deleting an item also removes it from anyone it was assigned to, so there are no leftover splits.)
 - **Set who paid** — choose the person who actually covered the bill, so settle-up knows who's owed.
 - **Assign items** — use the grid to check off who shared each item. An item split by two people is divided between them; an item only one person ordered is theirs alone.
+- **Multi-quantity items** are split for you — a line like *3 × Taco $10.00* is scanned as three separate items (price divided evenly, to the cent) so each unit can go to a different person.
 - **Tax and tip** are filled from the scan when possible and can be edited; PayUp spreads them **proportionally** to what each person ordered.
 
 Edits save as you go and update the totals immediately. If others are in the same trip, they'll see the changes live.
@@ -97,6 +110,10 @@ PayUp adds up everyone's share — items, plus their proportional tax and tip �
 
 - Each line is a single payment: *Person A pays Person B $X.*
 - Pay those amounts however you normally do (your payment app of choice), and everyone's even.
+
+**Marking a trip done.** Once everyone's settled, the trip owner can **mark the trip
+completed**. Completed trips drop off your active dashboard; tick **Show completed**
+there to see them again, or mark a trip active to bring it back.
 
 **If the numbers look off:**
 
