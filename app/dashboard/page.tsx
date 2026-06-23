@@ -34,6 +34,8 @@ export default function DashboardPage() {
   const [owners, setOwners] = useState<Map<string, PublicProfile>>(new Map());
   const [loadingTrips, setLoadingTrips] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Completed trips (is_settled) are hidden by default (Story 17.2).
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const loadTrips = useCallback(async () => {
     setLoadingTrips(true);
@@ -90,19 +92,34 @@ export default function DashboardPage() {
     );
   }
 
+  // Completed (is_settled) trips are hidden unless "Show completed" is on.
+  const visibleTrips = showCompleted
+    ? trips
+    : trips.filter((trip) => !trip.is_settled);
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl p-4 sm:p-6">
       <div className="mb-4 flex justify-end">
         <AccountMenu />
       </div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Your trips</h1>
-        <Link
-          href="/dashboard/new"
-          className="rounded bg-foreground px-4 py-2 text-sm font-medium text-background"
-        >
-          + Create New Trip
-        </Link>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-sm text-neutral-500">
+            <input
+              type="checkbox"
+              checked={showCompleted}
+              onChange={(event) => setShowCompleted(event.target.checked)}
+            />
+            Show completed
+          </label>
+          <Link
+            href="/dashboard/new"
+            className="rounded bg-foreground px-4 py-2 text-sm font-medium text-background"
+          >
+            + Create New Trip
+          </Link>
+        </div>
       </div>
 
       <div className="mb-6">
@@ -124,9 +141,16 @@ export default function DashboardPage() {
             Create your first trip
           </Link>
         </div>
+      ) : visibleTrips.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-neutral-300 p-10 text-center">
+          <p className="text-neutral-600">
+            No active trips. Tick &ldquo;Show completed&rdquo; to see finished
+            ones.
+          </p>
+        </div>
       ) : (
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {trips.map((trip) => (
+          {visibleTrips.map((trip) => (
             <li key={trip.id}>
               <Link
                 href={`/trips/${trip.id}`}
@@ -151,7 +175,7 @@ export default function DashboardPage() {
                       : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
                   }`}
                 >
-                  {trip.is_settled ? "Settled" : "Active"}
+                  {trip.is_settled ? "Completed" : "Active"}
                 </span>
               </Link>
             </li>

@@ -25,6 +25,7 @@ type Trip = {
   name: string;
   participants: string[] | null;
   user_id: string | null;
+  is_settled: boolean | null;
 };
 
 // The trip page needs both the ledger fields (LedgerReceipt) and the list
@@ -68,7 +69,7 @@ export default function TripHubPage() {
           // member (Feature 11.3), so invited members can open it too.
           supabase
             .from("trips")
-            .select("id,name,participants,user_id")
+            .select("id,name,participants,user_id,is_settled")
             .eq("id", tripId)
             .maybeSingle(),
           supabase
@@ -161,6 +162,28 @@ export default function TripHubPage() {
 
   const isOwner = !!user && !!trip && trip.user_id === user.id;
 
+  // Owner-only completion toggle (Story 17.2), reusing trips.is_settled. The
+  // owner-only trips UPDATE RLS is the authority; the control is hidden for
+  // members.
+  const [savingCompleted, setSavingCompleted] = useState(false);
+  const toggleCompleted = useCallback(async () => {
+    if (!trip) return;
+    const next = !trip.is_settled;
+    setSavingCompleted(true);
+    try {
+      const { error: updateError } = await supabase
+        .from("trips")
+        .update({ is_settled: next })
+        .eq("id", trip.id)
+        .select("id");
+      if (!updateError) {
+        setTrip((prev) => (prev ? { ...prev, is_settled: next } : prev));
+      }
+    } finally {
+      setSavingCompleted(false);
+    }
+  }, [trip]);
+
   // Recompute the minimal settle-up transfers whenever the trip's receipts or
   // participant list change. `balanced` is false if the ledger doesn't reconcile
   // to zero — in that case we don't render (misleading) transfers.
@@ -207,7 +230,28 @@ export default function TripHubPage() {
         </Link>
         <AccountMenu />
       </div>
-      <h1 className="mb-2 mt-4 text-2xl font-semibold">{trip.name}</h1>
+      <div className="mb-2 mt-4 flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-semibold">{trip.name}</h1>
+        {trip.is_settled ? (
+          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800 dark:bg-green-900/40 dark:text-green-300">
+            Completed
+          </span>
+        ) : null}
+        {isOwner ? (
+          <button
+            type="button"
+            onClick={() => void toggleCompleted()}
+            disabled={savingCompleted}
+            className="rounded border border-neutral-300 px-3 py-1 text-sm disabled:opacity-50 dark:border-neutral-700"
+          >
+            {savingCompleted
+              ? "Saving…"
+              : trip.is_settled
+                ? "Mark active"
+                : "Mark completed"}
+          </button>
+        ) : null}
+      </div>
       <p className="mb-6 text-sm text-neutral-500">
         {trip.participants && trip.participants.length > 0
           ? trip.participants.join(", ")
