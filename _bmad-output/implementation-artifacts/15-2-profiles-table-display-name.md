@@ -1,6 +1,6 @@
 # Story 15.2: Profiles Table & Display Name
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -52,8 +52,23 @@ so that I'm identified by something friendlier than my email address.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- Migration `0012_profiles.sql`: `profiles` (user_id PK→auth.users, display_name, created/updated_at), `updated_at` trigger (mirrors `0001`), `handle_new_user()` SECURITY DEFINER AFTER INSERT on `auth.users` + one-time backfill, and self-only RLS (select/insert/update where `auth.uid() = user_id`). **Manual Supabase apply.**
+- `utils/db/profile.ts`: `fetchProfile()` (fail-safe null) + `updateDisplayName()` (trim, cap at `DISPLAY_NAME_MAX=60`, blank→null; **upsert** so a missing row is created). Reusable by 15.3/15.4. +6 unit tests.
+- `/account`: display-name editor (loads profile, save with saved/error feedback). Email is the placeholder + the blank fallback (email is not duplicated into `profiles`).
+- `AccountMenu` now shows `display_name || email` (AC5).
+- `npm run lint` + `npm run build` + `npm test` clean (64 tests).
+
 ### File List
+
+**Added:**
+- `supabase/migrations/0012_profiles.sql`
+- `utils/db/profile.ts`
+- `tests/integration/db/profile.test.ts`
+
+**Modified:**
+- `app/account/page.tsx`
+- `components/feature/AccountMenu.tsx`
