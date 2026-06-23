@@ -1,6 +1,6 @@
 # Story 15.1: Account Menu & Logout
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -44,8 +44,22 @@ so that I can sign out and reach my account settings.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- `AccountMenu` component: avatar(initial)+email button with a dropdown → "Account settings" (`/account`) and "Log out" (`signOut()` → `/`). Renders nothing when signed out (AC4); closes on outside-click/Escape.
+- `/account` shell route (`app/account/page.tsx`): authenticated-only (redirects to `/`), intentionally thin — 15.2–15.5 fill it.
+- Wired into the two main authenticated surfaces' chrome: dashboard header and the trip hub header. (No global header exists; receipt-detail / dashboard-new can adopt it later — not required for AC1's primary surfaces.)
+- App-layer only; no migration. Reuses the existing `signOut()` from `AuthContext`.
+- `npm run lint` + `npm run build` + `npm test` clean (58 tests; `/account` route builds).
+
 ### File List
+
+**Added:**
+- `components/feature/AccountMenu.tsx`
+- `app/account/page.tsx`
+
+**Modified:**
+- `app/dashboard/page.tsx`
+- `app/trips/[id]/page.tsx`

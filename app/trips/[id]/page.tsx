@@ -10,6 +10,7 @@ import { ReceiptStagingModal } from "@/components/feature/ReceiptStagingModal";
 import { ReceiptList, type ReceiptListItem } from "@/components/feature/ReceiptList";
 import { ReceiptQuotaGate } from "@/components/feature/ReceiptQuotaGate";
 import { AccessRequestModal } from "@/components/feature/AccessRequestModal";
+import { AccountMenu } from "@/components/feature/AccountMenu";
 import { SettleUpLedger } from "@/components/feature/SettleUpLedger";
 import { InviteLinkManager } from "@/components/feature/InviteLinkManager";
 import { fetchReceiptQuota, type ReceiptQuota } from "@/utils/db/receiptQuota";
@@ -200,9 +201,12 @@ export default function TripHubPage() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-3xl p-4 sm:p-6">
-      <Link href="/dashboard" className="text-sm text-neutral-500 underline">
-        ← Dashboard
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/dashboard" className="text-sm text-neutral-500 underline">
+          ← Dashboard
+        </Link>
+        <AccountMenu />
+      </div>
       <h1 className="mb-2 mt-4 text-2xl font-semibold">{trip.name}</h1>
       <p className="mb-6 text-sm text-neutral-500">
         {trip.participants && trip.participants.length > 0
