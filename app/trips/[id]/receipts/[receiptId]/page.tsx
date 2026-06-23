@@ -266,7 +266,8 @@ export default function ReceiptMatrixPage() {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* Single stacked column (Story 17.5): image → matrix → fees, all breakpoints. */}
+      <div className="flex flex-col gap-6">
         <div className="flex items-start justify-center rounded-lg border border-neutral-300 p-4">
           {receipt.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element -- user-uploaded external receipt image of unknown size; next/image would need remotePatterns config and offers no benefit for a preview
