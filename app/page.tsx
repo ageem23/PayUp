@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { readSafeRedirect } from "@/utils/auth/redirect";
 
@@ -182,6 +183,15 @@ export default function LoginPage() {
                 className="rounded border border-neutral-300 bg-transparent px-3 py-2 dark:border-neutral-700"
               />
             </label>
+
+            {mode === "login" ? (
+              <Link
+                href="/forgot-password"
+                className="-mt-2 self-end text-xs text-neutral-500 underline"
+              >
+                Forgot password?
+              </Link>
+            ) : null}
 
             <button
               type="submit"
