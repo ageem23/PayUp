@@ -1,6 +1,6 @@
 # Story 15.6: Forgot / Reset Password
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -46,8 +46,25 @@ so that I can regain access to my account.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- `requestPasswordReset(email)` in `account.ts`: trims/guards, calls `resetPasswordForEmail` with `redirectTo = <origin>/reset-password`. +2 tests.
+- `/forgot-password`: email form → reset email; shows the **same** "if an account exists…" confirmation regardless of outcome (no enumeration, AC3).
+- `/reset-password`: uses the recovery session Supabase establishes from the link; sets the new password via `changePassword` (reused from 15.5). No session → "link expired" + a path to request a new one (AC5). Success → confirmation + continue-to-dashboard.
+- Login page: a "Forgot password?" link (login mode) → `/forgot-password`.
+- App-layer only; **manual Supabase step:** add `<origin>/reset-password` to the Auth allowed redirect URLs.
+- ⚠️ **Merge coordination:** this touches `app/page.tsx` (the forgot link), which the login redesign (PR #21) also rewrites. Whichever merges second resolves a trivial conflict — keep the redesign *and* re-add the "Forgot password?" link.
+- `npm run lint` + `npm run build` + `npm test` clean (133 tests).
+
 ### File List
+
+**Added:**
+- `app/forgot-password/page.tsx`
+- `app/reset-password/page.tsx`
+
+**Modified:**
+- `utils/auth/account.ts`
+- `app/page.tsx`
+- `tests/integration/auth/account.test.ts`

@@ -51,3 +51,25 @@ export async function changeEmail(newEmail: string): Promise<AuthActionResult> {
   if (error) return { ok: false, error: friendlyAuthError(error.message) };
   return { ok: true };
 }
+
+/**
+ * Sends a password-recovery email (Story 15.6). The link routes back to
+ * /reset-password (must be in Supabase's allowed redirect URLs). The caller
+ * shows the SAME confirmation regardless of the result so account existence is
+ * never revealed (AC3) — only a blank email is rejected up front.
+ */
+export async function requestPasswordReset(
+  email: string,
+): Promise<AuthActionResult> {
+  const target = email.trim();
+  if (!target) return { ok: false, error: "Please enter your email." };
+  const redirectTo =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/reset-password`
+      : undefined;
+  const { error } = await supabase.auth.resetPasswordForEmail(target, {
+    redirectTo,
+  });
+  if (error) return { ok: false, error: friendlyAuthError(error.message) };
+  return { ok: true };
+}
