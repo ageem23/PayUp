@@ -1,6 +1,6 @@
 # Story 17.2: Mark a Trip Completed + Dashboard Toggle
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -43,8 +43,17 @@ so that my dashboard shows what's still in progress.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- Dashboard: hides `is_settled` trips by default, a **"Show completed"** checkbox reveals them, badge relabeled **"Completed"/"Active"**, and an empty state when all trips are completed but hidden.
+- Trip page: owner-only **"Mark completed"/"Mark active"** toggle (+ a "Completed" chip) writing `trips.is_settled` via the owner-only UPDATE RLS; hidden for members.
+- No migration (reuses `trips.is_settled`); settle-up math untouched (AC6).
+- `npm run lint` + `npm run build` + `npm test` (75) clean.
+
 ### File List
+
+**Modified:**
+- `app/dashboard/page.tsx`
+- `app/trips/[id]/page.tsx`
