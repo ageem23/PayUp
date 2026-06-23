@@ -15,6 +15,7 @@ import {
   isAccentToken,
   type AccentToken,
 } from "@/utils/profile/accentColors";
+import { fetchProfile, savePreferences } from "@/utils/db/profile";
 
 export const ACCENT_STORAGE_KEY = "app-accent-color";
 
@@ -35,12 +36,32 @@ export function AccentColorProvider({ children }: { children: ReactNode }) {
   const [accent, setAccentState] = useState<AccentToken>(DEFAULT_ACCENT);
 
   useEffect(() => {
+    // 1) Instant: the cached choice (no flash).
     try {
       const saved = localStorage.getItem(ACCENT_STORAGE_KEY);
       if (isAccentToken(saved)) setAccentState(saved);
     } catch {
       // localStorage unavailable — keep the default for this session.
     }
+
+    // 2) Reconcile with the DB (source of truth) once the profile loads, so the
+    // preference follows the user across devices (Story 15.4). Signed-out users
+    // resolve to null → keep the cached/default value, no error.
+    let active = true;
+    void fetchProfile().then((profile) => {
+      const accent = profile?.accentColor ?? null;
+      if (active && isAccentToken(accent)) {
+        setAccentState(accent);
+        try {
+          localStorage.setItem(ACCENT_STORAGE_KEY, accent);
+        } catch {
+          // best-effort cache refresh
+        }
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const setAccent = useCallback((token: AccentToken) => {
@@ -50,6 +71,8 @@ export function AccentColorProvider({ children }: { children: ReactNode }) {
     } catch {
       // Persistence is best-effort.
     }
+    // Persist to the profile so it follows the user (no-op when signed out).
+    void savePreferences({ accentColor: token });
   }, []);
 
   const value = useMemo(

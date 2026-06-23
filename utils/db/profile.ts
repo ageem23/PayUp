@@ -9,6 +9,8 @@ const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
 export type Profile = {
   displayName: string | null;
   avatarUrl: string | null;
+  theme: string | null;
+  accentColor: string | null;
 };
 
 /**
@@ -24,7 +26,7 @@ export async function fetchProfile(): Promise<Profile | null> {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("display_name, avatar_url")
+    .select("display_name, avatar_url, theme, accent_color")
     .eq("user_id", user.id)
     .maybeSingle();
   if (error) return null;
@@ -32,7 +34,36 @@ export async function fetchProfile(): Promise<Profile | null> {
   return {
     displayName: (data?.display_name as string | null) ?? null,
     avatarUrl: (data?.avatar_url as string | null) ?? null,
+    theme: (data?.theme as string | null) ?? null,
+    accentColor: (data?.accent_color as string | null) ?? null,
   };
+}
+
+/**
+ * Persists theme / accent-color preferences to the profile (Story 15.4).
+ * Best-effort: signed-out users are a no-op (preferences stay cached in
+ * localStorage), and a write error is logged but never thrown — the UI has
+ * already applied + cached the change.
+ */
+export async function savePreferences(patch: {
+  theme?: string;
+  accentColor?: string;
+}): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const row: Record<string, unknown> = { user_id: user.id };
+  if (patch.theme !== undefined) row.theme = patch.theme;
+  if (patch.accentColor !== undefined) row.accent_color = patch.accentColor;
+
+  const { error } = await supabase
+    .from("profiles")
+    .upsert(row, { onConflict: "user_id" });
+  if (error) {
+    console.warn(`[profile] savePreferences failed: ${error.message}`);
+  }
 }
 
 /**

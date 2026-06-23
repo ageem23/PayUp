@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { fetchProfile, savePreferences } from "@/utils/db/profile";
 
 export type Theme = "light" | "dark";
 
@@ -47,12 +48,35 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("light");
 
   useEffect(() => {
+    // Sync state to the theme the anti-flash script already painted.
     setThemeState(readAppliedTheme());
+
+    // Reconcile with the DB (source of truth) once the profile loads, so the
+    // theme follows the user across devices (Story 15.4). The cached value above
+    // already prevented a flash; this only corrects a cross-device mismatch.
+    // Signed-out users resolve to null → keep the cached/default theme.
+    let active = true;
+    void fetchProfile().then((profile) => {
+      if (!active) return;
+      const saved = profile?.theme;
+      if (
+        (saved === "light" || saved === "dark") &&
+        saved !== readAppliedTheme()
+      ) {
+        applyTheme(saved);
+        setThemeState(saved);
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const setTheme = useCallback((next: Theme) => {
     applyTheme(next);
     setThemeState(next);
+    // Persist to the profile so it follows the user (no-op when signed out).
+    void savePreferences({ theme: next });
   }, []);
 
   const toggleTheme = useCallback(() => {
