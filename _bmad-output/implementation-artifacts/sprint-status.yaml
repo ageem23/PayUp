@@ -140,7 +140,7 @@ development_status:
 
   # Epic 15: Your Account — Profiles & Self-Service Management
   epic-15: in-progress
-  15-1-account-menu-logout: ready-for-dev
+  15-1-account-menu-logout: done
   15-2-profiles-table-display-name: ready-for-dev
   15-3-profile-avatar: ready-for-dev
   15-4-preferences-follow-user: ready-for-dev

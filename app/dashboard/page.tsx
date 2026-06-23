@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import { ProfileSelector } from "@/components/feature/ProfileSelector";
+import { AccountMenu } from "@/components/feature/AccountMenu";
 
 type Trip = {
   id: string;
@@ -75,6 +76,9 @@ export default function DashboardPage() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl p-4 sm:p-6">
+      <div className="mb-4 flex justify-end">
+        <AccountMenu />
+      </div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Your trips</h1>
         <Link
