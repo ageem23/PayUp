@@ -19,6 +19,12 @@ import {
   type LedgerReceipt,
 } from "@/utils/math/ledgerCompiler";
 import { minimizeDebts } from "@/utils/math/debtMinimizer";
+import {
+  parseParticipantInput,
+  addParticipants,
+  receiptsReferencingParticipant,
+} from "@/utils/participants";
+import { setTripParticipants } from "@/utils/db/tripParticipants";
 
 type Trip = {
   id: string;
@@ -184,6 +190,51 @@ export default function TripHubPage() {
     }
   }, [trip]);
 
+  // In-trip participant management (Story 17.4). Owner + members may edit via the
+  // set_trip_participants RPC; removal is blocked while a name is referenced.
+  const [participantInput, setParticipantInput] = useState("");
+  const [savingParticipants, setSavingParticipants] = useState(false);
+  const [participantError, setParticipantError] = useState<string | null>(null);
+
+  const persistParticipants = useCallback(
+    async (next: string[]) => {
+      if (!trip) return;
+      setSavingParticipants(true);
+      setParticipantError(null);
+      const result = await setTripParticipants(trip.id, next);
+      setSavingParticipants(false);
+      if (result.ok) {
+        setTrip((prev) => (prev ? { ...prev, participants: next } : prev));
+      } else {
+        setParticipantError("Couldn't update participants. Please try again.");
+      }
+    },
+    [trip],
+  );
+
+  const addTripParticipants = useCallback(() => {
+    const names = parseParticipantInput(participantInput);
+    if (names.length === 0) return;
+    const next = addParticipants(trip?.participants ?? [], names);
+    setParticipantInput("");
+    void persistParticipants(next);
+  }, [participantInput, trip?.participants, persistParticipants]);
+
+  const removeTripParticipant = useCallback(
+    (name: string) => {
+      const usedIn = receiptsReferencingParticipant(name, receipts);
+      if (usedIn.length > 0) {
+        setParticipantError(
+          `Can't remove ${name} — used in ${usedIn.join(", ")}. Reassign those first.`,
+        );
+        return;
+      }
+      const next = (trip?.participants ?? []).filter((p) => p !== name);
+      void persistParticipants(next);
+    },
+    [receipts, trip?.participants, persistParticipants],
+  );
+
   // Recompute the minimal settle-up transfers whenever the trip's receipts or
   // participant list change. `balanced` is false if the ledger doesn't reconcile
   // to zero — in that case we don't render (misleading) transfers.
@@ -252,11 +303,60 @@ export default function TripHubPage() {
           </button>
         ) : null}
       </div>
-      <p className="mb-6 text-sm text-neutral-500">
-        {trip.participants && trip.participants.length > 0
-          ? trip.participants.join(", ")
-          : "No participants"}
-      </p>
+      <section className="mb-6 flex flex-col gap-2">
+        <h2 className="text-sm font-medium text-neutral-500">Participants</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          {(trip.participants ?? []).map((name) => (
+            <span
+              key={name}
+              className="flex items-center gap-1 rounded-full border border-neutral-300 py-0.5 pl-3 pr-1 text-sm dark:border-neutral-700"
+            >
+              {name}
+              <button
+                type="button"
+                onClick={() => removeTripParticipant(name)}
+                disabled={savingParticipants}
+                aria-label={`Remove ${name}`}
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-xs leading-none disabled:opacity-50 dark:bg-neutral-700"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          {(trip.participants ?? []).length === 0 ? (
+            <span className="text-sm text-neutral-400">No participants yet.</span>
+          ) : null}
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={participantInput}
+            onChange={(event) => setParticipantInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addTripParticipants();
+              }
+            }}
+            placeholder="Add names (space-separated)"
+            disabled={savingParticipants}
+            className="flex-1 rounded border border-neutral-300 bg-transparent px-3 py-1.5 text-sm dark:border-neutral-700"
+          />
+          <button
+            type="button"
+            onClick={addTripParticipants}
+            disabled={savingParticipants}
+            className="rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50 dark:border-neutral-700"
+          >
+            Add
+          </button>
+        </div>
+        {participantError ? (
+          <p role="alert" className="text-sm text-red-600">
+            {participantError}
+          </p>
+        ) : null}
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Add a receipt</h2>

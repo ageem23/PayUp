@@ -30,3 +30,33 @@ export function addParticipants(
   }
   return result;
 }
+
+type RefReceipt = {
+  name: string | null;
+  paid_by: string;
+  split_among: { assigned_participants: string[] }[] | null;
+};
+
+/**
+ * Returns the display names of receipts that reference `participant` — as the
+ * payer (`paid_by`) or within any `split_among` allocation (Story 17.4). A
+ * non-empty result means removal must be blocked until those are reassigned.
+ */
+export function receiptsReferencingParticipant(
+  participant: string,
+  receipts: RefReceipt[],
+): string[] {
+  const refs: string[] = [];
+  for (const receipt of receipts) {
+    const inPaidBy = receipt.paid_by === participant;
+    const inSplit =
+      Array.isArray(receipt.split_among) &&
+      receipt.split_among.some((alloc) =>
+        alloc.assigned_participants?.includes(participant),
+      );
+    if (inPaidBy || inSplit) {
+      refs.push(receipt.name?.trim() || "Untitled receipt");
+    }
+  }
+  return refs;
+}

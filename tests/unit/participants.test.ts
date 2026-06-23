@@ -4,6 +4,7 @@
 import {
   parseParticipantInput,
   addParticipants,
+  receiptsReferencingParticipant,
 } from "@/utils/participants";
 
 describe("parseParticipantInput", () => {
@@ -39,5 +40,38 @@ describe("addParticipants", () => {
 
   it("is a no-op for an empty incoming list", () => {
     expect(addParticipants(["Alice"], [])).toEqual(["Alice"]);
+  });
+});
+
+describe("receiptsReferencingParticipant", () => {
+  const receipts = [
+    {
+      name: "Dinner",
+      paid_by: "Alice",
+      split_among: [{ assigned_participants: ["Alice", "Bob"] }],
+    },
+    { name: "Lunch", paid_by: "Bob", split_among: [] },
+    {
+      name: null,
+      paid_by: "Carol",
+      split_among: [{ assigned_participants: ["Dave"] }],
+    },
+  ];
+
+  it("flags receipts where the name is the payer or a split assignee", () => {
+    expect(receiptsReferencingParticipant("Bob", receipts)).toEqual([
+      "Dinner",
+      "Lunch",
+    ]);
+  });
+
+  it("falls back to 'Untitled receipt' for a nameless receipt", () => {
+    expect(receiptsReferencingParticipant("Dave", receipts)).toEqual([
+      "Untitled receipt",
+    ]);
+  });
+
+  it("returns empty when the name is unreferenced", () => {
+    expect(receiptsReferencingParticipant("Zoe", receipts)).toEqual([]);
   });
 });

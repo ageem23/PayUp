@@ -1,6 +1,6 @@
 # Story 17.4: Manage Participants Within a Trip
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -46,8 +46,23 @@ so that I can add someone who was missed or remove someone added by mistake.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- Migration `0016_trip_participants_member_write.sql`: `set_trip_participants(uuid, text[])` SECURITY DEFINER RPC — authorizes owner **or** `is_trip_member()` and updates **only** `trips.participants` (name/`is_settled` stay owner-only; RLS can't column-scope an UPDATE, hence the RPC). **Manual Supabase apply.**
+- `setTripParticipants` util (RPC wrapper) + `receiptsReferencingParticipant` helper in `participants.ts` (pure, +3 tests).
+- Trip page: a Participants section — chips with remove, space-separated add (reuses 17.3 parse/dedupe, case-insensitive). **Remove is blocked** when the name is a receipt's `paid_by` or in any `split_among`, with a message naming the receipt(s) (AC3). Owner + members can edit (RPC authority); non-members can't reach the trip.
+- Local state updates immediately (settle-up recomputes; the matrix picks up the new set on the receipt page). **Note:** cross-client *participant* broadcast isn't added — `trips` isn't in the Epic 12 realtime publication (only `receipts` is); per AC5's "where applicable," left as a follow-on.
+- `npm run lint` + `npm run build` + `npm test` (83) clean.
+
 ### File List
+
+**Added:**
+- `supabase/migrations/0016_trip_participants_member_write.sql`
+- `utils/db/tripParticipants.ts`
+
+**Modified:**
+- `utils/participants.ts`
+- `tests/unit/participants.test.ts`
+- `app/trips/[id]/page.tsx`
