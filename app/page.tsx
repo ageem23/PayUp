@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { readSafeRedirect } from "@/utils/auth/redirect";
@@ -74,13 +75,19 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-sm rounded-lg border border-neutral-300 p-6 shadow-sm dark:border-neutral-700">
-        <h1 className="text-center text-3xl font-bold tracking-tight">PayUp</h1>
-        <p className="mb-6 mt-1 text-center text-sm text-neutral-500 dark:text-neutral-400">
-          Good food, good friends, no awkward math.
-        </p>
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
+      <div className="w-full max-w-xl">
+        <Image
+          src="/banner.png"
+          alt="PayUp — good food, good friends, no awkward math"
+          width={1280}
+          height={698}
+          priority
+          className="h-auto w-full rounded-lg shadow-sm"
+        />
+      </div>
 
+      <div className="w-full max-w-sm rounded-lg border border-neutral-300 p-6 shadow-sm dark:border-neutral-700">
         <button
           type="button"
           onClick={handleGoogle}
@@ -176,12 +183,6 @@ export default function LoginPage() {
               />
             </label>
 
-            {error ? (
-              <p role="alert" className="text-sm text-red-600">
-                {error}
-              </p>
-            ) : null}
-
             <button
               type="submit"
               disabled={loading}
@@ -196,6 +197,31 @@ export default function LoginPage() {
           </form>
         ) : null}
       </div>
+
+      <footer className="text-center text-xs text-neutral-500 dark:text-neutral-400">
+        <p>© 2026 PayUp</p>
+        <p className="mt-1">
+          <a
+            href="https://github.com/ageem23/PayUp"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:underline"
+          >
+            GitHub
+          </a>
+          <span className="mx-2" aria-hidden="true">
+            ·
+          </span>
+          <a
+            href="https://github.com/ageem23/PayUp/blob/main/HELP.md"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:underline"
+          >
+            Help
+          </a>
+        </p>
+      </footer>
     </main>
   );
 }
