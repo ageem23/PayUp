@@ -91,18 +91,11 @@ export async function uploadAvatar(file: File): Promise<UploadAvatarResult> {
   }
 
   const folder = user.id;
-  // Clear any existing avatar object(s) so a different extension can't orphan
-  // the old file (AC5).
-  const { data: existing } = await supabase.storage
-    .from(AVATARS_BUCKET)
-    .list(folder);
-  if (existing && existing.length > 0) {
-    await supabase.storage
-      .from(AVATARS_BUCKET)
-      .remove(existing.map((object) => `${folder}/${object.name}`));
-  }
-
   const path = `${folder}/avatar.${ext}`;
+
+  // Upload the new avatar and update the profile FIRST. Only once both succeed
+  // do we clean up any prior object — so a failure mid-flight can't leave the
+  // user with no avatar and nothing to retry against.
   const { error: uploadError } = await supabase.storage
     .from(AVATARS_BUCKET)
     .upload(path, file, { upsert: true });
@@ -118,6 +111,24 @@ export async function uploadAvatar(file: File): Promise<UploadAvatarResult> {
     .from("profiles")
     .upsert({ user_id: user.id, avatar_url: url }, { onConflict: "user_id" });
   if (updateError) return { ok: false, error: updateError.message };
+
+  // Best-effort cleanup: remove any OTHER objects in the folder (e.g. a prior
+  // different-extension avatar) so they don't accumulate. Never fail the
+  // operation on a cleanup error — the new avatar is already live.
+  const { data: existing } = await supabase.storage
+    .from(AVATARS_BUCKET)
+    .list(folder);
+  const stale = (existing ?? [])
+    .map((object) => `${folder}/${object.name}`)
+    .filter((objectPath) => objectPath !== path);
+  if (stale.length > 0) {
+    const { error: removeError } = await supabase.storage
+      .from(AVATARS_BUCKET)
+      .remove(stale);
+    if (removeError) {
+      console.warn(`[uploadAvatar] avatar cleanup failed: ${removeError.message}`);
+    }
+  }
 
   return { ok: true, url };
 }

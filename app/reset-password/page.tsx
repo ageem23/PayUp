@@ -89,6 +89,7 @@ export default function ResetPasswordPage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="New password"
+                aria-label="New password"
                 autoComplete="new-password"
                 className="rounded border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
               />
@@ -97,6 +98,7 @@ export default function ResetPasswordPage() {
                 value={confirm}
                 onChange={(event) => setConfirm(event.target.value)}
                 placeholder="Confirm new password"
+                aria-label="Confirm new password"
                 autoComplete="new-password"
                 className="rounded border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
               />

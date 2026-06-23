@@ -81,6 +81,7 @@ export function AccountSecurity({ currentEmail }: Props) {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           placeholder="New password"
+          aria-label="New password"
           autoComplete="new-password"
           className={inputClass}
         />
@@ -89,6 +90,7 @@ export function AccountSecurity({ currentEmail }: Props) {
           value={confirm}
           onChange={(event) => setConfirm(event.target.value)}
           placeholder="Confirm new password"
+          aria-label="Confirm new password"
           autoComplete="new-password"
           className={inputClass}
         />
@@ -118,6 +120,7 @@ export function AccountSecurity({ currentEmail }: Props) {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           placeholder="New email"
+          aria-label="New email"
           autoComplete="email"
           autoCapitalize="none"
           inputMode="email"

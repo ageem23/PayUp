@@ -24,7 +24,7 @@ create policy "Users upload their own avatar" on storage.objects
     and name ~* '\.(jpe?g|png)$'
   );
 
--- Replace (upsert overwrites) — same own-folder constraint.
+-- Replace (upsert overwrites) — same own-folder + jpg/png constraint as INSERT.
 drop policy if exists "Users update their own avatar" on storage.objects;
 create policy "Users update their own avatar" on storage.objects
   for update to authenticated
@@ -35,6 +35,7 @@ create policy "Users update their own avatar" on storage.objects
   with check (
     bucket_id = 'avatars'
     and (storage.foldername(name))[1] = auth.uid()::text
+    and name ~* '\.(jpe?g|png)$'
   );
 
 -- Delete own prior avatar (cleanup on replace so objects don't accumulate).
