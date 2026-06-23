@@ -163,5 +163,5 @@ development_status:
   17-3-multi-participant-entry: done
   17-4-manage-trip-participants: done
   17-5-consistent-receipt-layout: done
-  17-6-ocr-quantity-autosplit: ready-for-dev
+  17-6-ocr-quantity-autosplit: done
   epic-17-retrospective: optional
