@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { fetchProfile } from "@/utils/db/profile";
 
 /**
  * Authenticated account entry point (Story 15.1): an avatar/email button with a
@@ -14,7 +15,23 @@ export function AccountMenu() {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  // Show the display name (Story 15.2) when set, falling back to the email.
+  useEffect(() => {
+    if (!user) {
+      setDisplayName(null);
+      return;
+    }
+    let active = true;
+    void fetchProfile().then((profile) => {
+      if (active) setDisplayName(profile?.displayName ?? null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   // Close on outside click / Escape while open.
   useEffect(() => {
@@ -37,8 +54,8 @@ export function AccountMenu() {
 
   if (!user) return null;
 
-  const label = user.email ?? "Account";
-  const initial = (user.email?.[0] ?? "?").toUpperCase();
+  const label = displayName?.trim() || user.email || "Account";
+  const initial = (label[0] ?? "?").toUpperCase();
 
   const handleLogout = async () => {
     setOpen(false);
