@@ -1,6 +1,6 @@
 # Story 15.3: Profile Avatar
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -48,8 +48,24 @@ so that my account feels personal and recognizable.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- Migration `0013_avatars_storage.sql`: `profiles.avatar_url` column + public-read `avatars` bucket with **own-folder** insert/update/delete policies (`(storage.foldername(name))[1] = auth.uid()::text`) + jpg/png name check (mirrors `0003`). **Manual Supabase apply.**
+- `uploadAvatar()` in `profile.ts`: client type/size validation (JPG/PNG, ≤5 MB), **removes any existing avatar object first** so a different extension can't orphan the old file (AC5), uploads to the stable path `avatars/{user_id}/avatar.<ext>`, persists a cache-busted public URL to the profile.
+- `/account`: avatar preview (or initials placeholder) + upload/change control with progress + error feedback.
+- `AccountMenu` shows the avatar image when set, else the initial.
+- `fetchProfile` now also returns `avatarUrl`; test updated.
+- `npm run lint` + `npm run build` + `npm test` clean (64 tests).
+
 ### File List
+
+**Added:**
+- `supabase/migrations/0013_avatars_storage.sql`
+
+**Modified:**
+- `utils/db/profile.ts`
+- `app/account/page.tsx`
+- `components/feature/AccountMenu.tsx`
+- `tests/integration/db/profile.test.ts`

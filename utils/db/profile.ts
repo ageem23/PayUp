@@ -2,14 +2,19 @@ import { supabase } from "@/utils/supabase/client";
 
 export const DISPLAY_NAME_MAX = 60;
 
+const AVATARS_BUCKET = "avatars";
+const ACCEPTED_AVATAR_EXT = ["jpg", "jpeg", "png"];
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
+
 export type Profile = {
   displayName: string | null;
+  avatarUrl: string | null;
 };
 
 /**
- * Reads the current user's profile (Story 15.2). Returns null when signed out or
- * on any error, so callers fail safe (fall back to the email). The profile row
- * is auto-created by the auth.users trigger / backfill in migration 0012.
+ * Reads the current user's profile (Story 15.2/15.3). Returns null when signed
+ * out or on any error, so callers fail safe (fall back to the email). The
+ * profile row is auto-created by the auth.users trigger / backfill in 0012.
  */
 export async function fetchProfile(): Promise<Profile | null> {
   const {
@@ -19,12 +24,71 @@ export async function fetchProfile(): Promise<Profile | null> {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("display_name")
+    .select("display_name, avatar_url")
     .eq("user_id", user.id)
     .maybeSingle();
   if (error) return null;
 
-  return { displayName: (data?.display_name as string | null) ?? null };
+  return {
+    displayName: (data?.display_name as string | null) ?? null,
+    avatarUrl: (data?.avatar_url as string | null) ?? null,
+  };
+}
+
+/**
+ * Uploads a new avatar for the current user (Story 15.3) into their own folder
+ * (`avatars/{user_id}/…`, enforced by the storage RLS in 0013). Removes any
+ * prior avatar objects first so they don't accumulate (AC5), then persists the
+ * cache-busted public URL onto the profile. Validates type/size client-side.
+ */
+export type UploadAvatarResult =
+  | { ok: true; url: string }
+  | { ok: false; error: string };
+
+export async function uploadAvatar(file: File): Promise<UploadAvatarResult> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "You must be signed in." };
+
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (!ACCEPTED_AVATAR_EXT.includes(ext)) {
+    return { ok: false, error: "Please upload a JPG or PNG image." };
+  }
+  if (file.size > MAX_AVATAR_BYTES) {
+    return { ok: false, error: "Image must be under 5 MB." };
+  }
+
+  const folder = user.id;
+  // Clear any existing avatar object(s) so a different extension can't orphan
+  // the old file (AC5).
+  const { data: existing } = await supabase.storage
+    .from(AVATARS_BUCKET)
+    .list(folder);
+  if (existing && existing.length > 0) {
+    await supabase.storage
+      .from(AVATARS_BUCKET)
+      .remove(existing.map((object) => `${folder}/${object.name}`));
+  }
+
+  const path = `${folder}/avatar.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from(AVATARS_BUCKET)
+    .upload(path, file, { upsert: true });
+  if (uploadError) return { ok: false, error: uploadError.message };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(path);
+  // Cache-bust so the <img> refreshes after a same-path replace.
+  const url = `${publicUrl}?v=${Date.now()}`;
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .upsert({ user_id: user.id, avatar_url: url }, { onConflict: "user_id" });
+  if (updateError) return { ok: false, error: updateError.message };
+
+  return { ok: true, url };
 }
 
 export type SaveResult = { ok: true } | { ok: false; error: string };

@@ -16,17 +16,23 @@ export function AccountMenu() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Show the display name (Story 15.2) when set, falling back to the email.
+  // Show the display name + avatar (Stories 15.2/15.3) when set, falling back to
+  // the email and an initial.
   useEffect(() => {
     if (!user) {
       setDisplayName(null);
+      setAvatarUrl(null);
       return;
     }
     let active = true;
     void fetchProfile().then((profile) => {
-      if (active) setDisplayName(profile?.displayName ?? null);
+      if (active) {
+        setDisplayName(profile?.displayName ?? null);
+        setAvatarUrl(profile?.avatarUrl ?? null);
+      }
     });
     return () => {
       active = false;
@@ -73,9 +79,18 @@ export function AccountMenu() {
         aria-label="Account menu"
         className="flex items-center gap-2 rounded-full border border-neutral-300 py-1 pl-1 pr-3 text-sm dark:border-neutral-700"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold dark:bg-neutral-700">
-          {initial}
-        </span>
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- small user avatar; next/image would need remotePatterns config for no benefit
+          <img
+            src={avatarUrl}
+            alt=""
+            className="h-7 w-7 rounded-full object-cover"
+          />
+        ) : (
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold dark:bg-neutral-700">
+            {initial}
+          </span>
+        )}
         <span className="hidden max-w-[12rem] truncate sm:inline">{label}</span>
       </button>
 
