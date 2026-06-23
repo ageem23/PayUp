@@ -12,7 +12,7 @@ import {
 } from "@/components/feature/MatrixStateWrapper";
 import { type SplitAllocation } from "@/components/feature/ReceiptMatrix";
 import { ReceiptSplitView } from "@/components/feature/ReceiptSplitView";
-import { patchReceiptName } from "@/utils/db/receiptEdits";
+import { patchReceiptName, patchReceiptPaidBy } from "@/utils/db/receiptEdits";
 
 type Trip = { id: string; name: string; participants: string[] | null };
 
@@ -24,6 +24,7 @@ type Receipt = {
   split_among: SplitAllocation[] | null;
   tax: number | null;
   tip: number | null;
+  paid_by: string;
 };
 
 export default function ReceiptMatrixPage() {
@@ -42,6 +43,31 @@ export default function ReceiptMatrixPage() {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
+
+  // Editable payer — correcting a mis-recorded "Paid by" is what fixes a wrong
+  // Settle Up (the ledger credits the payer; the wrong payer reads as "owed the
+  // totals"). The trip page recomputes the ledger on the resulting realtime
+  // receipt update.
+  const [savingPaidBy, setSavingPaidBy] = useState(false);
+  const [paidByError, setPaidByError] = useState(false);
+
+  const savePaidBy = useCallback(
+    async (nextPaidBy: string) => {
+      if (!receipt || nextPaidBy === receipt.paid_by) return;
+      setSavingPaidBy(true);
+      setPaidByError(false);
+      try {
+        await patchReceiptPaidBy(receipt.id, nextPaidBy);
+        setReceipt((prev) => (prev ? { ...prev, paid_by: nextPaidBy } : prev));
+      } catch {
+        // Leave the select on its prior value (controlled by receipt.paid_by).
+        setPaidByError(true);
+      } finally {
+        setSavingPaidBy(false);
+      }
+    },
+    [receipt],
+  );
 
   const saveName = useCallback(async () => {
     if (!receipt) return;
@@ -75,7 +101,9 @@ export default function ReceiptMatrixPage() {
             .maybeSingle(),
           supabase
             .from("receipts")
-            .select("id,name,image_url,processed_data,split_among,tax,tip")
+            .select(
+              "id,name,image_url,processed_data,split_among,tax,tip,paid_by",
+            )
             .eq("id", receiptId)
             .eq("trip_id", tripId)
             .maybeSingle(),
@@ -148,6 +176,13 @@ export default function ReceiptMatrixPage() {
   }
 
   const participants = trip.participants ?? [];
+  // Always include the current payer as an option, even if they're not in the
+  // participant list (a mismatch is exactly what makes the settle wrong), so
+  // the user can see the bad value and pick a real participant.
+  const payerOptions =
+    receipt.paid_by && !participants.includes(receipt.paid_by)
+      ? [receipt.paid_by, ...participants]
+      : participants;
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl p-4 sm:p-6">
@@ -200,6 +235,36 @@ export default function ReceiptMatrixPage() {
           </button>
         </div>
       )}
+
+      <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+        <label htmlFor="paid-by" className="text-neutral-500">
+          Paid by
+        </label>
+        <select
+          id="paid-by"
+          value={receipt.paid_by}
+          onChange={(event) => void savePaidBy(event.target.value)}
+          disabled={savingPaidBy || participants.length === 0}
+          className="rounded border border-neutral-300 bg-transparent px-2 py-1 dark:border-neutral-700"
+        >
+          {payerOptions.length === 0 ? (
+            <option value="">No participants on this trip</option>
+          ) : null}
+          {payerOptions.map((person) => (
+            <option key={person} value={person}>
+              {person}
+            </option>
+          ))}
+        </select>
+        {savingPaidBy ? (
+          <span className="text-xs text-neutral-400">Saving…</span>
+        ) : null}
+        {paidByError ? (
+          <span role="alert" className="text-xs text-red-600">
+            Couldn&apos;t update who paid. Try again.
+          </span>
+        ) : null}
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="flex items-start justify-center rounded-lg border border-neutral-300 p-4">
