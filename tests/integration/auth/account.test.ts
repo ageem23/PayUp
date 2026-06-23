@@ -4,12 +4,20 @@
 import {
   changePassword,
   changeEmail,
+  requestPasswordReset,
   MIN_PASSWORD_LENGTH,
 } from "@/utils/auth/account";
 
 const mockUpdateUser = jest.fn();
+const mockResetPasswordForEmail = jest.fn();
 jest.mock("@/utils/supabase/client", () => ({
-  supabase: { auth: { updateUser: (...args: unknown[]) => mockUpdateUser(...args) } },
+  supabase: {
+    auth: {
+      updateUser: (...args: unknown[]) => mockUpdateUser(...args),
+      resetPasswordForEmail: (...args: unknown[]) =>
+        mockResetPasswordForEmail(...args),
+    },
+  },
 }));
 
 beforeEach(() => jest.clearAllMocks());
@@ -61,5 +69,24 @@ describe("changeEmail", () => {
     const result = await changeEmail("new@x.com");
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toMatch(/already in use/i);
+  });
+});
+
+describe("requestPasswordReset", () => {
+  it("rejects a blank email without calling Supabase", async () => {
+    const result = await requestPasswordReset("  ");
+    expect(result.ok).toBe(false);
+    expect(mockResetPasswordForEmail).not.toHaveBeenCalled();
+  });
+
+  it("sends a recovery email for a trimmed address", async () => {
+    mockResetPasswordForEmail.mockResolvedValue({ error: null });
+    await expect(requestPasswordReset(" a@x.com ")).resolves.toEqual({
+      ok: true,
+    });
+    expect(mockResetPasswordForEmail).toHaveBeenCalledWith(
+      "a@x.com",
+      expect.any(Object),
+    );
   });
 });
