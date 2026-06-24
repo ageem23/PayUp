@@ -181,3 +181,11 @@ development_status:
   19-3-eslint-flat-config-v10: done
   19-4-post-upgrade-regression: done
   epic-19-retrospective: optional
+
+  # Epic 20: Pre-UAT UX Polish — Footer, Upload, Realtime
+  epic-20: backlog
+  20-1-global-footer: backlog
+  20-2-simplify-upload-dialog: backlog
+  20-3-remove-version-history: backlog
+  20-4-realtime-editable-fields: backlog
+  epic-20-retrospective: optional

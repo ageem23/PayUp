@@ -49,3 +49,7 @@ See [docs/prd/epic-18/epic_18_overview.md](docs/prd/epic-18/epic_18_overview.md)
 
 See [docs/prd/epic-19/epic_19_overview.md](docs/prd/epic-19/epic_19_overview.md) for the full Epic 19 story registry and acceptance criteria (Stories 19.1–19.4) — Next.js 16 upgrade + ESLint flat config (supersedes Dependabot #28/#29/#30).
 
+### Epic 20 detail
+
+See [docs/prd/epic-20/epic_20_overview.md](docs/prd/epic-20/epic_20_overview.md) for the full Epic 20 story registry and acceptance criteria (Stories 20.1–20.4) — pre-UAT UX polish: global footer, simplified upload dialog, remove version history, realtime for name/paid-by/tip/tax.
+
