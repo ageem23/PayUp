@@ -84,16 +84,16 @@ export default function LoginPage() {
           width={1280}
           height={698}
           priority
-          className="h-auto w-full rounded-lg shadow-sm"
+          className="h-auto w-full rounded-lg shadow-xs"
         />
       </div>
 
-      <div className="w-full max-w-sm rounded-lg border border-neutral-300 p-6 shadow-sm dark:border-neutral-700">
+      <div className="w-full max-w-sm rounded-lg border border-neutral-300 p-6 shadow-xs dark:border-neutral-700">
         <button
           type="button"
           onClick={handleGoogle}
           disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-md border border-neutral-300 px-4 py-2.5 font-medium shadow-sm hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          className="flex w-full items-center justify-center gap-2 rounded-md border border-neutral-300 px-4 py-2.5 font-medium shadow-xs hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
             <path

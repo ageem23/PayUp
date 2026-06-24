@@ -170,7 +170,7 @@ development_status:
   epic-18: in-progress
   18-1-toolchain-entrypoint-swap: done
   18-2-css-first-theme-port: done
-  18-3-breaking-utility-audit: backlog
+  18-3-breaking-utility-audit: done
   18-4-visual-parity-verification: backlog
   epic-18-retrospective: optional
 
