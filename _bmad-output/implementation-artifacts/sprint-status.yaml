@@ -178,6 +178,6 @@ development_status:
   epic-19: in-progress
   19-1-next16-preupgrade-audit: done
   19-2-core-upgrade-next-eslintconfig: done
-  19-3-eslint-flat-config-v10: backlog
+  19-3-eslint-flat-config-v10: done
   19-4-post-upgrade-regression: backlog
   epic-19-retrospective: optional
