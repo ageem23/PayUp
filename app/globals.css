@@ -1,4 +1,12 @@
-@import "tailwindcss";
+/* `source(none)` disables v4's automatic detection (which scans every
+   non-ignored file, including Markdown — so class-like strings in docs/specs
+   would generate phantom utilities). The explicit @source globs below reproduce
+   the v3 `content` array: only real source is scanned. */
+@import "tailwindcss" source(none);
+@source "../app";
+@source "../components";
+@source "../context";
+@source "../utils";
 
 /* Class-based dark mode (Epic 9): Tailwind v4 defaults `dark:` to
    prefers-color-scheme, so we declare a custom variant that instead activates it
