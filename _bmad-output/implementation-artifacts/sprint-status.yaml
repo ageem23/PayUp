@@ -175,8 +175,8 @@ development_status:
   epic-18-retrospective: optional
 
   # Epic 19: Next.js 16 Upgrade + ESLint flat config (supersedes Dependabot #28/#29/#30)
-  epic-19: backlog
-  19-1-next16-preupgrade-audit: backlog
+  epic-19: in-progress
+  19-1-next16-preupgrade-audit: done
   19-2-core-upgrade-next-eslintconfig: backlog
   19-3-eslint-flat-config-v10: backlog
   19-4-post-upgrade-regression: backlog
