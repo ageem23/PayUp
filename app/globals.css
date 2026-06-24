@@ -1,6 +1,8 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Story 18.1: temporary bridge to the existing JS config (darkMode/content/
+   theme) so the build is green on v4 before the CSS-first port in 18.2. */
+@config "../tailwind.config.ts";
 
 :root {
   --background: #ffffff;
