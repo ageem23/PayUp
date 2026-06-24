@@ -21,7 +21,7 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 - **Lint script:** `"next lint"` → `"eslint ."` (`next lint` removed in Next 16). CI runs `npm run lint`, so no `ci.yml` change needed.
 - **Two upgrade-driven fixes, both documented in the config:**
   1. *Pinned `settings.react.version` to `"19.2"`* — eslint-config-next 16 defaults it to `"detect"`, whose code path calls `context.getFilename()` (removed in ESLint 10) and crashes the run. Pinning skips detection.
-  2. *Disabled `react-hooks/set-state-in-effect`* — a new rule in react-hooks 7 (bundled by eslint-config-next 16) that flagged 9 of the app's deliberate "load data on mount" effects. It wasn't enforced pre-upgrade; turned off to keep this a behavior-preserving migration. **Follow-up candidate:** adopt it + refactor those effects as a separate code-quality pass.
+  2. *Scoped-off `react-hooks/set-state-in-effect`* — a new rule in react-hooks 7 (bundled by eslint-config-next 16) that flagged 9 of the app's deliberate "load data on mount"/external-state-sync effects. It wasn't enforced pre-upgrade; turned off **only for those 9 files** via a scoped `files` override, so the rule still guards all other code (narrowed from a global disable per CodeRabbit). **Follow-up candidate:** adopt it everywhere + refactor those effects as a separate code-quality pass.
 - `npm run lint` (ESLint 10, exit 0) + `npm run build` + `npm test` (90) all green.
 
 ### File List

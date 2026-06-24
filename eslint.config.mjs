@@ -32,13 +32,27 @@ const eslintConfig = [
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
       "@typescript-eslint/no-explicit-any": "error",
-      // react-hooks 7 (new with eslint-config-next 16) adds this rule, which
-      // flags the app's deliberate "load data on mount" effects (a synchronous
-      // setState before the first await in a loader). It wasn't enforced before
-      // this upgrade; turned off to keep Epic 19 a behavior-preserving tooling
-      // migration. Revisit as a separate code-quality pass if we want to adopt it.
-      "react-hooks/set-state-in-effect": "off",
     },
+  },
+  {
+    // react-hooks 7 (new with eslint-config-next 16) adds set-state-in-effect,
+    // which flags these components'/contexts' deliberate mount-time loaders and
+    // external-state syncs (a synchronous setState before the first await). Scope
+    // the exemption to just these known sites so the rule still guards all other
+    // code. Follow-up candidate: adopt it everywhere and refactor these effects.
+    // ('*' matches the dynamic-route segments — '[token]'/'[id]' are glob chars.)
+    files: [
+      "app/dashboard/page.tsx",
+      "app/invite/*/page.tsx",
+      "app/trips/*/page.tsx",
+      "app/trips/*/receipts/*/page.tsx",
+      "components/feature/AccountMenu.tsx",
+      "components/feature/MatrixStateWrapper.tsx",
+      "components/feature/ReceiptSummarySidebar.tsx",
+      "context/AccentColorContext.tsx",
+      "context/ThemeContext.tsx",
+    ],
+    rules: { "react-hooks/set-state-in-effect": "off" },
   },
 ];
 
