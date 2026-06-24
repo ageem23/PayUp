@@ -40,3 +40,12 @@ See [docs/prd/epic-16/epic_16_overview.md](docs/prd/epic-16/epic_16_overview.md)
 ### Epic 17 detail
 
 See [docs/prd/epic-17/epic_17_overview.md](docs/prd/epic-17/epic_17_overview.md) for the full Epic 17 story registry and acceptance criteria (Stories 17.1–17.6).
+
+### Epic 18 detail
+
+See [docs/prd/epic-18/epic_18_overview.md](docs/prd/epic-18/epic_18_overview.md) for the full Epic 18 story registry and acceptance criteria (Stories 18.1–18.4) — Tailwind CSS v4 migration (supersedes Dependabot #27).
+
+### Epic 19 detail
+
+See [docs/prd/epic-19/epic_19_overview.md](docs/prd/epic-19/epic_19_overview.md) for the full Epic 19 story registry and acceptance criteria (Stories 19.1–19.4) — Next.js 16 upgrade + ESLint flat config (supersedes Dependabot #28/#29/#30).
+
