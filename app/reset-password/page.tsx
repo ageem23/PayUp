@@ -46,7 +46,7 @@ export default function ResetPasswordPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-sm rounded-lg border border-neutral-300 p-6 shadow-sm dark:border-neutral-700">
+      <div className="w-full max-w-sm rounded-lg border border-neutral-300 p-6 shadow-xs dark:border-neutral-700">
         {!user ? (
           <>
             <h1 className="mb-2 text-center text-2xl font-semibold">
