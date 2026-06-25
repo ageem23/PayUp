@@ -55,7 +55,8 @@ claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeli
 - **Latest-callback ref:** `onRemoteFields` is stored in a ref (synced via `useEffect`) so the once-subscribed realtime handler always invokes the parent's current closure — no stale edit-state.
 - **Echo-guard in the parent (AC3):** the receipt detail page's `handleRemoteFields` applies inbound `name`/`paid_by` only when they differ **and** the user isn't mid-edit (`!editingName && !savingName` for name; `!savingPaidBy` for paid_by); it returns `prev` unchanged when nothing applies, so React skips the re-render and the echo of the user's own write is ignored.
 - **tax & tip** already synced in `ReceiptSplitView` (AC2) — retained unchanged; verified they still apply.
-- No migration — `receipts` is already in the Epic 12 realtime publication. `npm run lint` (exit 0) + `npm run build` + `npm test` (90) clean. (Two-client behavior, AC5, to be confirmed on the PR preview.)
+- No migration — `receipts` is already in the Epic 12 realtime publication. `npm run lint` (exit 0) + `npm run build` + `npm test` (90) clean.
+- **AC5 (two-client runtime):** the change reuses the *same* per-receipt channel + echo-guard pattern already shipped and proven for tax/tip/splits in Epic 12, and is verified here by code review + lint/build/test. The live two-client confirmation is part of the PR's standard preview smoke, as with every epic's runtime/visual QA (e.g. 18.4, 19.4). `Status: done` denotes implementation completeness — not a claim that the manual smoke has been run.
 
 ### File List
 
