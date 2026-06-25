@@ -42,8 +42,20 @@ so that the GitHub link and the getting-started guide are reachable everywhere.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- New presentational `components/ui/Footer.tsx` (© + GitHub + **"Getting Started"** link to `HELP.md`, subtle top border) rendered once in `app/layout.tsx`.
+- Layout `<body>` is now `flex min-h-screen flex-col` so the footer sits below content; removed the inline footer from `app/page.tsx` and changed the login `<main>` from `min-h-screen` to `flex-1` so it fills the space and the footer pins to the bottom on that (canonical short) page.
+- Other pages keep their `min-h-screen` mains, so the footer renders below their content (no overlap) — left as-is to avoid a broad 11-file height refactor; can be harmonized later if a pinned footer is wanted everywhere.
+- `npm run lint` (exit 0) + `npm run build` + `npm test` (90) clean.
+
 ### File List
+
+**Added:**
+- `components/ui/Footer.tsx`
+
+**Modified:**
+- `app/layout.tsx`
+- `app/page.tsx`
