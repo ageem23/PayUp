@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
@@ -156,8 +156,16 @@ export default function ReceiptMatrixPage() {
   // view's realtime channel. Never clobber a field the local user is mid-editing
   // or mid-saving; returns prev unchanged when nothing applies so React skips the
   // re-render (and ignores the echo of our own write).
+  const [savingMode, setSavingMode] = useState(false);
+
   const handleRemoteFields = useCallback(
-    (fields: { name?: string | null; paid_by?: string | null }) => {
+    (fields: {
+      name?: string | null;
+      paid_by?: string | null;
+      split_mode?: string | null;
+      even_split_among?: string[] | null;
+      amount?: number | null;
+    }) => {
       setReceipt((prev) => {
         if (!prev) return prev;
         let next = prev;
@@ -176,15 +184,35 @@ export default function ReceiptMatrixPage() {
         ) {
           next = { ...next, paid_by: fields.paid_by };
         }
+        // Even-split fields (Story 21.4) — guarded by the local mode/selection save.
+        if (!savingMode) {
+          if (
+            (fields.split_mode === "itemized" || fields.split_mode === "even") &&
+            fields.split_mode !== next.split_mode
+          ) {
+            next = { ...next, split_mode: fields.split_mode };
+          }
+          if (
+            Array.isArray(fields.even_split_among) &&
+            (fields.even_split_among.length !==
+              (next.even_split_among?.length ?? 0) ||
+              !fields.even_split_among.every((p) =>
+                (next.even_split_among ?? []).includes(p),
+              ))
+          ) {
+            next = { ...next, even_split_among: fields.even_split_among };
+          }
+          if (typeof fields.amount === "number" && fields.amount !== next.amount) {
+            next = { ...next, amount: fields.amount };
+          }
+        }
         return next;
       });
     },
-    [editingName, savingName, savingPaidBy],
+    [editingName, savingName, savingPaidBy, savingMode],
   );
 
   // --- Even-Split Mode (Epic 21, Story 21.3) ---
-  const [savingMode, setSavingMode] = useState(false);
-
   const persistReceipt = useCallback(
     async (fields: Partial<Receipt>) => {
       setSavingMode(true);
@@ -260,6 +288,52 @@ export default function ReceiptMatrixPage() {
     (value: number) => void persistReceipt({ amount: value }),
     [persistReceipt],
   );
+
+  // Even-mode realtime (Story 21.4). In even mode the matrix (and ReceiptSplitView's
+  // subscription) is unmounted, so this owns the single per-receipt channel while
+  // even mode is active — mutually exclusive with the matrix's channel, so there's
+  // never more than one at a time. A ref keeps the effect from re-subscribing when
+  // the guard state changes.
+  const remoteFieldsRef = useRef(handleRemoteFields);
+  useEffect(() => {
+    remoteFieldsRef.current = handleRemoteFields;
+  }, [handleRemoteFields]);
+
+  const evenModeActive = receipt?.split_mode === "even";
+  useEffect(() => {
+    if (!evenModeActive || !receiptId) return;
+    const channel = supabase
+      .channel(`receipt:${receiptId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "receipts",
+          filter: `id=eq.${receiptId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            name?: string | null;
+            paid_by?: string | null;
+            split_mode?: string | null;
+            even_split_among?: string[] | null;
+            amount?: number | null;
+          };
+          remoteFieldsRef.current({
+            name: row.name,
+            paid_by: row.paid_by,
+            split_mode: row.split_mode,
+            even_split_among: row.even_split_among,
+            amount: row.amount,
+          });
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [evenModeActive, receiptId]);
 
   useEffect(() => {
     if (loading) return;

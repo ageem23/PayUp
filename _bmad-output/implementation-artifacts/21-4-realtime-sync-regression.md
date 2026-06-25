@@ -1,6 +1,6 @@
 # Story 21.4: Realtime Sync + Regression Verification
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -34,8 +34,19 @@ As a collaborator, I want even-split changes to sync live and itemized receipts 
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- **Resolved the "where does the one channel live" wrinkle:** the matrix (`ReceiptSplitView`, which owns the `receipt:${id}` channel) and the even-split panel are **mutually exclusive** (one mode per receipt), so:
+  - *Itemized mode:* `ReceiptSplitView`'s existing channel now also surfaces `split_mode`/`even_split_among`/`amount` via `onRemoteFields` (extended payload + Props type).
+  - *Even mode:* a detail-page `useEffect` (gated on `evenModeActive`) owns a per-receipt subscription that applies the same fields. Since the two never mount together, there is **never more than one channel per receipt** at a time, and a remote mode-switch cleanly hands the channel off (the inbound `split_mode` flips the UI, unmounting one subscription and mounting the other).
+- **Echo-guard:** `handleRemoteFields` (Story 20.4) extended to apply `split_mode`/`even_split_among`/`amount` only when `!savingMode` (don't clobber an in-progress local mode/selection edit) and only when changed (order-insensitive compare for `even_split_among`); returns `prev` unchanged otherwise (ignores the echo). A latest-callback ref keeps the even-mode effect from re-subscribing on guard-state changes.
+- **No itemized regression:** matrix/tax/tip/quantity-split/settle-up unchanged; the 98-test suite (incl. the Epic 21 ledger tests) stays green. No migration (the columns ride the Epic 12 `receipts` publication).
+- `npm run lint` (exit 0) + `npm run build` + `npm test` (98) clean. Two-client manual smoke is checklisted for the PR preview.
+
 ### File List
+
+**Modified:**
+- `components/feature/ReceiptSplitView.tsx`
+- `app/trips/[id]/receipts/[receiptId]/page.tsx`
