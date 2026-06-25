@@ -82,6 +82,15 @@ type Props = {
   initialSplitAmong: SplitAllocation[] | null;
   initialTax: number;
   initialTip: number;
+  /**
+   * Called when the receipt row changes remotely, with the inbound name/paid_by
+   * (Story 20.4). The parent owns those fields and applies them with its own
+   * edit-guard; tax/tip/splits/items are handled internally here.
+   */
+  onRemoteFields?: (fields: {
+    name?: string | null;
+    paid_by?: string | null;
+  }) => void;
 };
 
 export function ReceiptSplitView({
@@ -91,7 +100,14 @@ export function ReceiptSplitView({
   initialSplitAmong,
   initialTax,
   initialTip,
+  onRemoteFields,
 }: Props) {
+  // Keep the latest onRemoteFields in a ref so the realtime handler (which only
+  // subscribes once, on receiptId) always calls the parent's current closure.
+  const onRemoteFieldsRef = useRef(onRemoteFields);
+  useEffect(() => {
+    onRemoteFieldsRef.current = onRemoteFields;
+  }, [onRemoteFields]);
   const [tax, setTax] = useState<number>(initialTax);
   const [tip, setTip] = useState<number>(initialTip);
   const [feeSaveState, setFeeSaveState] = useState<SaveState>("idle");
@@ -253,6 +269,8 @@ export function ReceiptSplitView({
             processed_data?: LineItem[] | null;
             tax?: number | null;
             tip?: number | null;
+            name?: string | null;
+            paid_by?: string | null;
           };
 
           // Apply remote line-item edits (Story 13.6) — ignore the echo of our
@@ -295,6 +313,10 @@ export function ReceiptSplitView({
               currentFeesRef.current = { ...currentFeesRef.current, tip: next };
             }
           }
+
+          // Surface remote name/paid_by to the parent (Story 20.4); it applies
+          // them with its own edit-guard (the detail page owns those fields).
+          onRemoteFieldsRef.current?.({ name: row.name, paid_by: row.paid_by });
         },
       )
       .subscribe();
