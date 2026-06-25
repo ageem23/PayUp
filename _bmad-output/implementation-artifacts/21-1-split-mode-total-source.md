@@ -1,6 +1,6 @@
 # Story 21.1: Split Mode + Total Source
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -36,8 +36,21 @@ As a developer building even-split, I want a receipt-level split mode and a reli
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- **Total-source decision (AC1):** even mode divides `receipts.amount` (the existing, previously-unused `numeric(10,2)` column) — auto-filled from `sum(items)+tax+tip` when items exist, manually settable when not. No new total column.
+- **Migration `0017_even_split_mode.sql`** (manual Supabase apply): adds `split_mode text not null default 'itemized'` (+ a `receipts_split_mode_check` constraint limiting it to `itemized`/`even`) and `even_split_among jsonb not null default '[]'`. Idempotent.
+- **Types + SELECTs:** `LedgerReceipt` gains `split_mode`/`even_split_among`/`amount` (optional, so itemized callers/fixtures compile unchanged); the receipt-detail `Receipt` type gains them (required); both receipt SELECT lists (trip page `RECEIPT_SELECT`, detail page) now fetch the new columns.
+- No behavior change yet (matrix/settle-up unchanged) — this story is the model only. The untyped Supabase client + existing `as` casts absorb the new columns. `npm run lint` (exit 0) + `npm run build` + `npm test` (90) clean.
+
 ### File List
+
+**Added:**
+- `supabase/migrations/0017_even_split_mode.sql`
+
+**Modified:**
+- `utils/math/ledgerCompiler.ts`
+- `app/trips/[id]/page.tsx`
+- `app/trips/[id]/receipts/[receiptId]/page.tsx`

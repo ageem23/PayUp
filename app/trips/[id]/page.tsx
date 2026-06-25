@@ -41,7 +41,7 @@ type TripReceipt = LedgerReceipt & ReceiptListItem;
 
 // Single source of truth for the receipt columns the page reads (list + ledger).
 const RECEIPT_SELECT =
-  "id,name,image_url,created_at,paid_by,processed_data,split_among,tax,tip";
+  "id,name,image_url,created_at,paid_by,processed_data,split_among,tax,tip,split_mode,even_split_among,amount";
 
 export default function TripHubPage() {
   const params = useParams<{ id: string }>();

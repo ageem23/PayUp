@@ -21,6 +21,12 @@ export interface LedgerReceipt {
   tax: number | null;
   tip: number | null;
   paid_by: string;
+  // Even-Split Mode (Epic 21). When split_mode is "even", the ledger divides
+  // `amount` equally among `even_split_among` instead of using split_among.
+  // Optional so existing itemized callers/fixtures compile unchanged.
+  split_mode?: "itemized" | "even" | null;
+  even_split_among?: string[] | null;
+  amount?: number | null;
 }
 
 export interface LedgerResult {

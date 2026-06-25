@@ -25,6 +25,10 @@ type Receipt = {
   tax: number | null;
   tip: number | null;
   paid_by: string;
+  // Even-Split Mode (Epic 21).
+  split_mode: "itemized" | "even" | null;
+  even_split_among: string[] | null;
+  amount: number | null;
 };
 
 export default function ReceiptMatrixPage() {
@@ -102,7 +106,7 @@ export default function ReceiptMatrixPage() {
           supabase
             .from("receipts")
             .select(
-              "id,name,image_url,processed_data,split_among,tax,tip,paid_by",
+              "id,name,image_url,processed_data,split_among,tax,tip,paid_by,split_mode,even_split_among,amount",
             )
             .eq("id", receiptId)
             .eq("trip_id", tripId)
