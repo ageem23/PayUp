@@ -191,9 +191,9 @@ development_status:
   epic-20-retrospective: optional
 
   # Epic 21: Even-Split Mode (split a whole receipt equally among selected participants)
-  epic-21: in-progress
+  epic-21: done
   21-1-split-mode-total-source: done
   21-2-even-split-settle-up-math: done
   21-3-even-split-mode-ui: done
-  21-4-realtime-sync-regression: ready-for-dev
+  21-4-realtime-sync-regression: done
   epic-21-retrospective: optional
