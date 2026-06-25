@@ -67,8 +67,14 @@ export function compileLedger(
     // With nobody selected the receipt contributes nothing (keeps the ledger
     // balanced); itemless receipts work because the total comes from `amount`.
     if (receipt.split_mode === "even") {
+      // Normalize against the authoritative roster: dedupe and drop any name no
+      // longer a participant, so a stale/duplicate entry can't create a phantom
+      // debtor or charge someone twice.
+      const participantSet = new Set(participants);
       const names = Array.isArray(receipt.even_split_among)
-        ? receipt.even_split_among
+        ? [...new Set(receipt.even_split_among)].filter((name) =>
+            participantSet.has(name),
+          )
         : [];
       if (names.length > 0) {
         const totalCents = cents(receipt.amount ?? 0);

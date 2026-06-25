@@ -75,4 +75,17 @@ describe("compileLedger — even-split mode", () => {
     expect(net.Alice).toBeCloseTo(15, 2);
     expect(net.Bob).toBeCloseTo(-15, 2);
   });
+
+  it("dedupes and drops names that are no longer participants", () => {
+    // "Bob" duplicated + "Zoe" not on the roster → effective split is Alice+Bob.
+    const r = even({
+      amount: 20,
+      even_split_among: ["Alice", "Bob", "Bob", "Zoe"],
+    });
+    const { net, balanced } = compileLedger([r], ["Alice", "Bob"]);
+    expect(balanced).toBe(true);
+    expect(net.Alice).toBeCloseTo(10, 2); // paid 20, owes 10 (1 of 2 valid)
+    expect(net.Bob).toBeCloseTo(-10, 2); // charged once, not twice
+    expect(net.Zoe ?? 0).toBe(0); // phantom name never debited
+  });
 });

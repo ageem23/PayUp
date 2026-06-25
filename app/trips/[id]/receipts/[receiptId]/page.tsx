@@ -184,32 +184,33 @@ export default function ReceiptMatrixPage() {
         ) {
           next = { ...next, paid_by: fields.paid_by };
         }
-        // Even-split fields (Story 21.4) — guarded by the local mode/selection save.
-        if (!savingMode) {
-          if (
-            (fields.split_mode === "itemized" || fields.split_mode === "even") &&
-            fields.split_mode !== next.split_mode
-          ) {
-            next = { ...next, split_mode: fields.split_mode };
-          }
-          if (
-            Array.isArray(fields.even_split_among) &&
-            (fields.even_split_among.length !==
-              (next.even_split_among?.length ?? 0) ||
-              !fields.even_split_among.every((p) =>
-                (next.even_split_among ?? []).includes(p),
-              ))
-          ) {
-            next = { ...next, even_split_among: fields.even_split_among };
-          }
-          if (typeof fields.amount === "number" && fields.amount !== next.amount) {
-            next = { ...next, amount: fields.amount };
-          }
+        // Even-split fields (Story 21.4). The equality checks below ARE the echo
+        // suppression (skip when the inbound value equals ours), so a concurrent
+        // collaborator edit that arrives during a local save still lands — no
+        // blanket savingMode drop, which would lose edge-triggered remote updates.
+        if (
+          (fields.split_mode === "itemized" || fields.split_mode === "even") &&
+          fields.split_mode !== next.split_mode
+        ) {
+          next = { ...next, split_mode: fields.split_mode };
+        }
+        if (
+          Array.isArray(fields.even_split_among) &&
+          (fields.even_split_among.length !==
+            (next.even_split_among?.length ?? 0) ||
+            !fields.even_split_among.every((p) =>
+              (next.even_split_among ?? []).includes(p),
+            ))
+        ) {
+          next = { ...next, even_split_among: fields.even_split_among };
+        }
+        if (typeof fields.amount === "number" && fields.amount !== next.amount) {
+          next = { ...next, amount: fields.amount };
         }
         return next;
       });
     },
-    [editingName, savingName, savingPaidBy, savingMode],
+    [editingName, savingName, savingPaidBy],
   );
 
   // --- Even-Split Mode (Epic 21, Story 21.3) ---
@@ -230,7 +231,7 @@ export default function ReceiptMatrixPage() {
   );
 
   const switchMode = useCallback(
-    (mode: "itemized" | "even") => {
+    async (mode: "itemized" | "even") => {
       if (!receipt || !trip || receipt.split_mode === mode) return;
       // Switching modes discards the other mode's assignments — confirm first.
       const losing =
@@ -249,14 +250,26 @@ export default function ReceiptMatrixPage() {
       }
 
       if (mode === "even") {
-        const items = Array.isArray(receipt.processed_data)
-          ? receipt.processed_data
-          : [];
+        // ReceiptSplitView owns the live item/fee edits and persists them to the
+        // DB, so the page's receipt state can be stale — re-read the latest before
+        // deriving the even total, or we'd save an outdated `amount`.
+        const { data: freshData } = await supabase
+          .from("receipts")
+          .select("processed_data,tax,tip")
+          .eq("id", receiptId)
+          .maybeSingle();
+        const fresh = freshData as {
+          processed_data: LineItem[] | null;
+          tax: number | null;
+          tip: number | null;
+        } | null;
+        const pd = fresh?.processed_data;
+        const items = Array.isArray(pd) ? pd : [];
         const hasItems = items.length > 0;
         const derived =
           items.reduce((sum, it) => sum + (it.price ?? 0), 0) +
-          (receipt.tax ?? 0) +
-          (receipt.tip ?? 0);
+          (fresh?.tax ?? 0) +
+          (fresh?.tip ?? 0);
         void persistReceipt({
           split_mode: "even",
           split_among: [],
@@ -269,7 +282,7 @@ export default function ReceiptMatrixPage() {
         void persistReceipt({ split_mode: "itemized", even_split_among: [] });
       }
     },
-    [receipt, trip, persistReceipt],
+    [receipt, trip, receiptId, persistReceipt],
   );
 
   const toggleEvenParticipant = useCallback(
@@ -470,7 +483,7 @@ export default function ReceiptMatrixPage() {
       <div className="mb-6 inline-flex rounded-lg border border-neutral-300 p-0.5 text-sm dark:border-neutral-700">
         <button
           type="button"
-          onClick={() => switchMode("itemized")}
+          onClick={() => void switchMode("itemized")}
           disabled={savingMode}
           aria-pressed={!isEven}
           className={`rounded-md px-3 py-1 disabled:opacity-50 ${
@@ -481,7 +494,7 @@ export default function ReceiptMatrixPage() {
         </button>
         <button
           type="button"
-          onClick={() => switchMode("even")}
+          onClick={() => void switchMode("even")}
           disabled={savingMode}
           aria-pressed={isEven}
           className={`rounded-md px-3 py-1 disabled:opacity-50 ${

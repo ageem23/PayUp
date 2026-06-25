@@ -22,3 +22,32 @@ begin
       check (split_mode in ('itemized', 'even'));
   end if;
 end $$;
+
+-- Enforce that even_split_among is a JSON array of strings (the ledger/UI treat
+-- it as a participant-name array). A CHECK can't contain a subquery, so the
+-- per-element validation lives in an IMMUTABLE helper the constraint calls.
+create or replace function public.is_jsonb_string_array(v jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select v is not null
+    and jsonb_typeof(v) = 'array'
+    and not exists (
+      select 1
+      from jsonb_array_elements(v) as e
+      where jsonb_typeof(e) <> 'string'
+    );
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'receipts_even_split_among_strings'
+  ) then
+    alter table public.receipts
+      add constraint receipts_even_split_among_strings
+      check (public.is_jsonb_string_array(even_split_among));
+  end if;
+end $$;
