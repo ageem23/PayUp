@@ -1,6 +1,6 @@
 # Story 20.2: Simplify the Receipt Upload Dialog
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -44,8 +44,15 @@ so that I'm not entering a name the scan will fill in anyway.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- `ReceiptStagingModal` already had a "Paid by" selector and an *optional* name field; this story **removed the name input** entirely (and its state), replacing it with a one-line hint that the name is filled from the scan.
+- Insert now sends `name: ""` so the OCR pass populates it (Story 13.4); `paid_by` comes from the selector (still required when the trip has participants). The quota-error handling and `onCreated` navigation are unchanged.
+- Renaming on the receipt page afterward is untouched (AC5). `npm run lint` (exit 0) + `npm run build` + `npm test` (90) clean.
+
 ### File List
+
+**Modified:**
+- `components/feature/ReceiptStagingModal.tsx`

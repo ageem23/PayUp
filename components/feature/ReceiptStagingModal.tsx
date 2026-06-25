@@ -18,16 +18,15 @@ export function ReceiptStagingModal({
   onClose,
   onCreated,
 }: Props) {
-  const [name, setName] = useState("");
   const [paidBy, setPaidBy] = useState(participants[0] ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // Name is optional: if left blank, OCR auto-fills it from the merchant name
-    // on the receipt (Story 13.4).
-    const trimmed = name.trim();
+    // No name field (Story 20.2): the name is left blank here and auto-filled by
+    // OCR from the merchant name on the receipt (Story 13.4). The dialog only
+    // captures who paid.
     if (!paidBy) {
       setError("Please select who paid.");
       return;
@@ -41,7 +40,7 @@ export function ReceiptStagingModal({
         .insert([
           {
             trip_id: tripId,
-            name: trimmed,
+            name: "",
             amount: 0.0,
             paid_by: paidBy,
             image_url: imageUrl,
@@ -79,16 +78,10 @@ export function ReceiptStagingModal({
       <div className="w-full max-w-sm rounded-lg border border-neutral-300 bg-background p-6 shadow-lg">
         <h2 className="mb-4 text-lg font-semibold">Stage receipt</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1 text-sm">
-            Receipt name <span className="text-neutral-400">(optional)</span>
-            <input
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Auto-filled from the receipt"
-              className="rounded border border-neutral-300 bg-transparent px-3 py-2"
-            />
-          </label>
+          <p className="text-sm text-neutral-500">
+            The receipt name is filled in automatically from the scan. Just pick
+            who paid.
+          </p>
 
           <label className="flex flex-col gap-1 text-sm">
             Paid by
