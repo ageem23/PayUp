@@ -12,6 +12,7 @@ import {
 } from "@/components/feature/MatrixStateWrapper";
 import { type SplitAllocation } from "@/components/feature/ReceiptMatrix";
 import { ReceiptSplitView } from "@/components/feature/ReceiptSplitView";
+import { EvenSplitPanel } from "@/components/feature/EvenSplitPanel";
 import { patchReceiptName, patchReceiptPaidBy } from "@/utils/db/receiptEdits";
 
 type Trip = { id: string; name: string; participants: string[] | null };
@@ -181,6 +182,85 @@ export default function ReceiptMatrixPage() {
     [editingName, savingName, savingPaidBy],
   );
 
+  // --- Even-Split Mode (Epic 21, Story 21.3) ---
+  const [savingMode, setSavingMode] = useState(false);
+
+  const persistReceipt = useCallback(
+    async (fields: Partial<Receipt>) => {
+      setSavingMode(true);
+      const { error: updateError } = await supabase
+        .from("receipts")
+        .update(fields)
+        .eq("id", receiptId)
+        .select("id");
+      setSavingMode(false);
+      if (!updateError) {
+        setReceipt((prev) => (prev ? { ...prev, ...fields } : prev));
+      }
+    },
+    [receiptId],
+  );
+
+  const switchMode = useCallback(
+    (mode: "itemized" | "even") => {
+      if (!receipt || !trip || receipt.split_mode === mode) return;
+      // Switching modes discards the other mode's assignments — confirm first.
+      const losing =
+        mode === "even"
+          ? (receipt.split_among?.length ?? 0) > 0
+          : (receipt.even_split_among?.length ?? 0) > 0;
+      if (
+        losing &&
+        !window.confirm(
+          mode === "even"
+            ? "Switch to even split? This clears the item assignments on this receipt."
+            : "Switch to itemized? This clears the even-split selection on this receipt.",
+        )
+      ) {
+        return;
+      }
+
+      if (mode === "even") {
+        const items = Array.isArray(receipt.processed_data)
+          ? receipt.processed_data
+          : [];
+        const hasItems = items.length > 0;
+        const derived =
+          items.reduce((sum, it) => sum + (it.price ?? 0), 0) +
+          (receipt.tax ?? 0) +
+          (receipt.tip ?? 0);
+        void persistReceipt({
+          split_mode: "even",
+          split_among: [],
+          even_split_among: receipt.even_split_among?.length
+            ? receipt.even_split_among
+            : (trip.participants ?? []),
+          amount: hasItems ? Number(derived.toFixed(2)) : (receipt.amount ?? 0),
+        });
+      } else {
+        void persistReceipt({ split_mode: "itemized", even_split_among: [] });
+      }
+    },
+    [receipt, trip, persistReceipt],
+  );
+
+  const toggleEvenParticipant = useCallback(
+    (name: string) => {
+      if (!receipt) return;
+      const cur = receipt.even_split_among ?? [];
+      const next = cur.includes(name)
+        ? cur.filter((p) => p !== name)
+        : [...cur, name];
+      void persistReceipt({ even_split_among: next });
+    },
+    [receipt, persistReceipt],
+  );
+
+  const setEvenAmount = useCallback(
+    (value: number) => void persistReceipt({ amount: value }),
+    [persistReceipt],
+  );
+
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -217,6 +297,18 @@ export default function ReceiptMatrixPage() {
     receipt.paid_by && !participants.includes(receipt.paid_by)
       ? [receipt.paid_by, ...participants]
       : participants;
+
+  // Even-Split Mode render state (Story 21.3).
+  const isEven = receipt.split_mode === "even";
+  const evenItems = Array.isArray(receipt.processed_data)
+    ? receipt.processed_data
+    : [];
+  const hasItems = evenItems.length > 0;
+  const evenTotal = hasItems
+    ? evenItems.reduce((sum, it) => sum + (it.price ?? 0), 0) +
+      (receipt.tax ?? 0) +
+      (receipt.tip ?? 0)
+    : (receipt.amount ?? 0);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl p-4 sm:p-6">
@@ -300,7 +392,33 @@ export default function ReceiptMatrixPage() {
         ) : null}
       </div>
 
-      {/* Single stacked column (Story 17.5): image → matrix → fees, all breakpoints. */}
+      {/* Split-mode toggle (Story 21.3): itemized matrix vs. even split. */}
+      <div className="mb-6 inline-flex rounded-lg border border-neutral-300 p-0.5 text-sm dark:border-neutral-700">
+        <button
+          type="button"
+          onClick={() => switchMode("itemized")}
+          disabled={savingMode}
+          aria-pressed={!isEven}
+          className={`rounded-md px-3 py-1 disabled:opacity-50 ${
+            !isEven ? "bg-foreground text-background" : ""
+          }`}
+        >
+          Itemized
+        </button>
+        <button
+          type="button"
+          onClick={() => switchMode("even")}
+          disabled={savingMode}
+          aria-pressed={isEven}
+          className={`rounded-md px-3 py-1 disabled:opacity-50 ${
+            isEven ? "bg-foreground text-background" : ""
+          }`}
+        >
+          Even split
+        </button>
+      </div>
+
+      {/* Single stacked column (Story 17.5): image → matrix/even-split, all breakpoints. */}
       <div className="flex flex-col gap-6">
         <div className="flex items-start justify-center rounded-lg border border-neutral-300 p-4">
           {receipt.image_url ? (
@@ -317,29 +435,41 @@ export default function ReceiptMatrixPage() {
           )}
         </div>
 
-        <div className="overflow-x-auto">
-          <MatrixStateWrapper
-            receiptId={receipt.id}
-            imageUrl={receipt.image_url}
-            initialProcessedData={receipt.processed_data}
-            initialName={receipt.name}
-            initialTax={receipt.tax ?? 0}
-            initialTip={receipt.tip ?? 0}
-            onPrefill={handlePrefill}
-          >
-            {(items) => (
-              <ReceiptSplitView
-                receiptId={receipt.id}
-                items={items}
-                participants={participants}
-                initialSplitAmong={receipt.split_among}
-                initialTax={receipt.tax ?? 0}
-                initialTip={receipt.tip ?? 0}
-                onRemoteFields={handleRemoteFields}
-              />
-            )}
-          </MatrixStateWrapper>
-        </div>
+        {isEven ? (
+          <EvenSplitPanel
+            participants={participants}
+            selected={receipt.even_split_among ?? []}
+            onToggle={toggleEvenParticipant}
+            total={evenTotal}
+            hasItems={hasItems}
+            onTotalChange={setEvenAmount}
+            saving={savingMode}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <MatrixStateWrapper
+              receiptId={receipt.id}
+              imageUrl={receipt.image_url}
+              initialProcessedData={receipt.processed_data}
+              initialName={receipt.name}
+              initialTax={receipt.tax ?? 0}
+              initialTip={receipt.tip ?? 0}
+              onPrefill={handlePrefill}
+            >
+              {(items) => (
+                <ReceiptSplitView
+                  receiptId={receipt.id}
+                  items={items}
+                  participants={participants}
+                  initialSplitAmong={receipt.split_among}
+                  initialTax={receipt.tax ?? 0}
+                  initialTip={receipt.tip ?? 0}
+                  onRemoteFields={handleRemoteFields}
+                />
+              )}
+            </MatrixStateWrapper>
+          </div>
+        )}
       </div>
     </main>
   );

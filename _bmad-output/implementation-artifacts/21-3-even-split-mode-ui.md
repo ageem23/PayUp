@@ -1,6 +1,6 @@
 # Story 21.3: Even-Split Mode UI
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -36,8 +36,19 @@ As a person splitting a receipt, I want to switch a receipt to "even split" and 
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- **Mode toggle** (Itemized / Even split) on the receipt detail page bound to `receipts.split_mode`; in even mode the matrix (`MatrixStateWrapper`/`ReceiptSplitView`) is replaced by the even-split panel.
+- New presentational **`components/feature/EvenSplitPanel.tsx`**: participant chips (multi-select → `even_split_among`), the total (read-only when derived from items, an **input when the receipt has no items** → writes `amount`), and a live "**$X.XX each**" readout (range when cents don't divide evenly) using the shared `splitCentsEvenly` so the UI matches the 21.2 ledger.
+- **Destructive-safe switch**: `switchMode` confirms (`window.confirm`) when the other mode has data, then discards it — `split_among` ↔ `even_split_among`. Entering even mode seeds the selection with all trip participants and the total from `sum(items)+tax+tip` (or leaves `amount` for manual entry when itemless). Persists via `supabase.from('receipts').update(...)` with optimistic local state.
+- `paid_by` editing unchanged in both modes. `npm run lint` (exit 0) + `npm run build` + `npm test` (98) clean. (Realtime sync of these fields + two-client verification is Story 21.4.)
+
 ### File List
+
+**Added:**
+- `components/feature/EvenSplitPanel.tsx`
+
+**Modified:**
+- `app/trips/[id]/receipts/[receiptId]/page.tsx`
