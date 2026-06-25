@@ -76,7 +76,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
+    <main className="flex flex-1 flex-col items-center justify-center gap-6 p-4">
       <div className="w-full max-w-xl">
         <Image
           src="/banner.png"
@@ -208,30 +208,6 @@ export default function LoginPage() {
         ) : null}
       </div>
 
-      <footer className="text-center text-xs text-neutral-500 dark:text-neutral-400">
-        <p>© 2026 PayUp</p>
-        <p className="mt-1">
-          <a
-            href="https://github.com/ageem23/PayUp"
-            target="_blank"
-            rel="noreferrer"
-            className="hover:underline"
-          >
-            GitHub
-          </a>
-          <span className="mx-2" aria-hidden="true">
-            ·
-          </span>
-          <a
-            href="https://github.com/ageem23/PayUp/blob/main/HELP.md"
-            target="_blank"
-            rel="noreferrer"
-            className="hover:underline"
-          >
-            Help
-          </a>
-        </p>
-      </footer>
     </main>
   );
 }

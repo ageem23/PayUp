@@ -8,15 +8,12 @@ import {
 } from "@/components/feature/ReceiptMatrix";
 import { ReceiptSummarySidebar } from "@/components/feature/ReceiptSummarySidebar";
 import { ReceiptItemsEditor } from "@/components/feature/ReceiptItemsEditor";
-import { ActivityTimeline } from "@/components/feature/ActivityTimeline";
 import type { SaveState } from "@/components/feature/SyncStatusBar";
-import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import { patchReceiptFees } from "@/utils/db/receiptFees";
 import { patchReceiptSplits } from "@/utils/db/matrixPatch";
 import { patchReceiptItems } from "@/utils/db/receiptEdits";
 import { calculateProportionalSplit } from "@/utils/math/billCalculations";
-import type { AuditLogEntry } from "@/types/audit";
 
 // How long to coalesce a burst of line-item keystrokes into one write.
 const ITEMS_SAVE_DEBOUNCE_MS = 600;
@@ -36,12 +33,6 @@ function sameItems(a: LineItem[], b: LineItem[]): boolean {
 // Debounce window for persisting fee edits — long enough to coalesce a burst of
 // keystrokes into one write, short enough to feel instant.
 const FEE_SAVE_DEBOUNCE_MS = 600;
-
-const money = (value: number): string => `$${value.toFixed(2)}`;
-
-// Cap the in-memory activity log so a long session can't grow it (and the DOM)
-// without bound. Older entries fall off the bottom.
-const AUDIT_LOG_LIMIT = 100;
 
 // Order-insensitive equality for split_among. jsonb reorders object keys and
 // may reorder array elements, so the echo of our own write won't string-match
@@ -91,6 +82,15 @@ type Props = {
   initialSplitAmong: SplitAllocation[] | null;
   initialTax: number;
   initialTip: number;
+  /**
+   * Called when the receipt row changes remotely, with the inbound name/paid_by
+   * (Story 20.4). The parent owns those fields and applies them with its own
+   * edit-guard; tax/tip/splits/items are handled internally here.
+   */
+  onRemoteFields?: (fields: {
+    name?: string | null;
+    paid_by?: string | null;
+  }) => void;
 };
 
 export function ReceiptSplitView({
@@ -100,15 +100,14 @@ export function ReceiptSplitView({
   initialSplitAmong,
   initialTax,
   initialTip,
+  onRemoteFields,
 }: Props) {
-  const { user } = useAuth();
-  // The local actor for audit entries — email local-part, or "You" if unknown
-  // (guards a missing or malformed email that would split to an empty string).
-  const actorName = useMemo(() => {
-    const email = user?.email;
-    return email?.split("@")[0] || "You";
-  }, [user]);
-
+  // Keep the latest onRemoteFields in a ref so the realtime handler (which only
+  // subscribes once, on receiptId) always calls the parent's current closure.
+  const onRemoteFieldsRef = useRef(onRemoteFields);
+  useEffect(() => {
+    onRemoteFieldsRef.current = onRemoteFields;
+  }, [onRemoteFields]);
   const [tax, setTax] = useState<number>(initialTax);
   const [tip, setTip] = useState<number>(initialTip);
   const [feeSaveState, setFeeSaveState] = useState<SaveState>("idle");
@@ -181,26 +180,6 @@ export function ReceiptSplitView({
     [cancelPendingItemsSave, saveItems],
   );
 
-  // In-memory activity log for this session (newest first). Not persisted.
-  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
-  const auditIdRef = useRef(0);
-  const logActivity = useCallback(
-    (actionDescription: string) => {
-      setAuditLog((prev) =>
-        [
-          {
-            id: String(++auditIdRef.current),
-            timestamp: new Date().toISOString(),
-            actorName,
-            actionDescription,
-          },
-          ...prev,
-        ].slice(0, AUDIT_LOG_LIMIT),
-      );
-    },
-    [actorName],
-  );
-
   // Last fee values successfully sent to the DB — guards against saving on
   // mount and against redundant writes when a value lands back on its prior one.
   const savedFeesRef = useRef<{ tax: number; tip: number }>({
@@ -236,19 +215,13 @@ export function ReceiptSplitView({
       .catch(() => undefined)
       .then(() => patchReceiptFees(receiptId, { tax: nextTax, tip: nextTip }))
       .then(() => {
-        // Audit only AFTER a successful commit, diffing against the last
-        // committed values — so a failed (then retried) save can't log a change
-        // that never persisted, nor double-log the same one.
-        const before = savedFeesRef.current;
-        if (nextTax !== before.tax) logActivity(`set Tax to ${money(nextTax)}`);
-        if (nextTip !== before.tip) logActivity(`set Tip to ${money(nextTip)}`);
         savedFeesRef.current = { tax: nextTax, tip: nextTip };
         if (feeSeq.current === seq) setFeeSaveState("saved");
       })
       .catch(() => {
         if (feeSeq.current === seq) setFeeSaveState("error");
       });
-  }, [receiptId, logActivity]);
+  }, [receiptId]);
 
   const scheduleFeeSave = useCallback(() => {
     if (feeTimerRef.current) clearTimeout(feeTimerRef.current);
@@ -296,6 +269,8 @@ export function ReceiptSplitView({
             processed_data?: LineItem[] | null;
             tax?: number | null;
             tip?: number | null;
+            name?: string | null;
+            paid_by?: string | null;
           };
 
           // Apply remote line-item edits (Story 13.6) — ignore the echo of our
@@ -338,6 +313,10 @@ export function ReceiptSplitView({
               currentFeesRef.current = { ...currentFeesRef.current, tip: next };
             }
           }
+
+          // Surface remote name/paid_by to the parent (Story 20.4); it applies
+          // them with its own edit-guard (the detail page owns those fields).
+          onRemoteFieldsRef.current?.({ name: row.name, paid_by: row.paid_by });
         },
       )
       .subscribe();
@@ -369,13 +348,6 @@ export function ReceiptSplitView({
     const seq = ++splitSeq.current;
     setSplitsSynced(next);
     setSplitSaveState("saving");
-    const itemName =
-      lineItemsRef.current.find((item) => item.id === itemId)?.name || "item";
-    logActivity(
-      checked
-        ? `assigned '${itemName}' to ${participant}`
-        : `unassigned '${itemName}' from ${participant}`,
-    );
     // Auto-save the FULL updated split_among array (preserves every line),
     // queued after any in-flight save so writes apply in order. Only the newest
     // save (seq) may set the visible status — stale completions are ignored.
@@ -412,12 +384,10 @@ export function ReceiptSplitView({
     // after this immediate write and undo the add.
     cancelPendingItemsSave();
     saveItems(next); // structural change — persist immediately, no debounce
-    logActivity("added a line item");
-  }, [setLineItemsSynced, cancelPendingItemsSave, saveItems, logActivity]);
+  }, [setLineItemsSynced, cancelPendingItemsSave, saveItems]);
 
   const handleDeleteItem = useCallback(
     (itemId: string) => {
-      const removed = lineItemsRef.current.find((item) => item.id === itemId);
       const nextItems = lineItemsRef.current.filter(
         (item) => item.id !== itemId,
       );
@@ -445,7 +415,6 @@ export function ReceiptSplitView({
             if (splitSeq.current === seq) setSplitSaveState("error");
           });
       }
-      logActivity(`removed '${removed?.name || "item"}'`);
     },
     [
       receiptId,
@@ -453,7 +422,6 @@ export function ReceiptSplitView({
       cancelPendingItemsSave,
       saveItems,
       setSplitsSynced,
-      logActivity,
     ],
   );
 
@@ -523,7 +491,6 @@ export function ReceiptSplitView({
           totals={totals}
         />
       </div>
-      <ActivityTimeline entries={auditLog} />
     </div>
   );
 }

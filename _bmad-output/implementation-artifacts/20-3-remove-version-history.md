@@ -1,6 +1,6 @@
 # Story 20.3: Remove the Receipt Version History
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -42,8 +42,20 @@ so that the page doesn't imply a history it can't fully show.
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- Removed `<ActivityTimeline>` from `ReceiptSplitView` plus all its plumbing: the `auditLog` state, `logActivity`/`actorName`/`auditIdRef`, the `AUDIT_LOG_LIMIT`/`money` constants, the `useAuth`/`AuditLogEntry` imports, and the ~5 `logActivity` call sites (with their now-stale `before`/`itemName`/`removed` locals + dependency-array entries) across the fee-save, toggle, add-item, and delete-item handlers.
+- Deleted `components/feature/ActivityTimeline.tsx` and `types/audit.ts` (no other importers).
+- **No audit-write backend to clean up (AC4):** the activity log was purely **in-memory and session-scoped** (`// Not persisted`) — which is exactly why it only ever showed the current session. There is no DB audit table/write left dead.
+- No regression to the matrix, fees, totals, or realtime (build + 90 tests green; the fee/item save logic was preserved, only the logging stripped). `npm run lint` (exit 0) + `npm run build` + `npm test` clean.
+
 ### File List
+
+**Deleted:**
+- `components/feature/ActivityTimeline.tsx`
+- `types/audit.ts`
+
+**Modified:**
+- `components/feature/ReceiptSplitView.tsx`

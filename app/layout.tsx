@@ -3,6 +3,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AccentColorProvider } from "@/context/AccentColorContext";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { Footer } from "@/components/ui/Footer";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -28,11 +29,15 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="bg-background text-foreground antialiased">
+      <body className="flex min-h-screen flex-col bg-background text-foreground antialiased">
         <ThemeProvider>
           <AccentColorProvider>
+            {/* Page content fills the space so the footer (Story 20.1) sits at
+                the bottom of the viewport on short pages and below the content
+                on long ones. */}
             <AuthProvider>{children}</AuthProvider>
             <ThemeToggle />
+            <Footer />
           </AccentColorProvider>
         </ThemeProvider>
       </body>

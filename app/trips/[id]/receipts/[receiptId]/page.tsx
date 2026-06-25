@@ -147,6 +147,36 @@ export default function ReceiptMatrixPage() {
     );
   }, []);
 
+  // Apply remote name/paid_by edits live (Story 20.4) — surfaced from the split
+  // view's realtime channel. Never clobber a field the local user is mid-editing
+  // or mid-saving; returns prev unchanged when nothing applies so React skips the
+  // re-render (and ignores the echo of our own write).
+  const handleRemoteFields = useCallback(
+    (fields: { name?: string | null; paid_by?: string | null }) => {
+      setReceipt((prev) => {
+        if (!prev) return prev;
+        let next = prev;
+        if (
+          typeof fields.name === "string" &&
+          fields.name !== next.name &&
+          !editingName &&
+          !savingName
+        ) {
+          next = { ...next, name: fields.name };
+        }
+        if (
+          typeof fields.paid_by === "string" &&
+          fields.paid_by !== next.paid_by &&
+          !savingPaidBy
+        ) {
+          next = { ...next, paid_by: fields.paid_by };
+        }
+        return next;
+      });
+    },
+    [editingName, savingName, savingPaidBy],
+  );
+
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -301,6 +331,7 @@ export default function ReceiptMatrixPage() {
                 initialSplitAmong={receipt.split_among}
                 initialTax={receipt.tax ?? 0}
                 initialTip={receipt.tip ?? 0}
+                onRemoteFields={handleRemoteFields}
               />
             )}
           </MatrixStateWrapper>
