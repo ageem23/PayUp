@@ -14,6 +14,7 @@ import {
   type BillItem,
   type BillSplitAllocation,
 } from "@/utils/math/billCalculations";
+import { splitCentsEvenly } from "@/utils/math/evenSplit";
 
 export interface LedgerReceipt {
   processed_data: BillItem[] | null;
@@ -21,6 +22,12 @@ export interface LedgerReceipt {
   tax: number | null;
   tip: number | null;
   paid_by: string;
+  // Even-Split Mode (Epic 21). When split_mode is "even", the ledger divides
+  // `amount` equally among `even_split_among` instead of using split_among.
+  // Optional so existing itemized callers/fixtures compile unchanged.
+  split_mode?: "itemized" | "even" | null;
+  even_split_among?: string[] | null;
+  amount?: number | null;
 }
 
 export interface LedgerResult {
@@ -54,6 +61,30 @@ export function compileLedger(
   };
 
   for (const receipt of receipts) {
+    // Even-Split Mode (Epic 21): divide `amount` equally among `even_split_among`
+    // instead of using the item matrix. Credit the payer the full total and debit
+    // each selected participant a cent-exact equal share, so the receipt nets to 0.
+    // With nobody selected the receipt contributes nothing (keeps the ledger
+    // balanced); itemless receipts work because the total comes from `amount`.
+    if (receipt.split_mode === "even") {
+      // Normalize against the authoritative roster: dedupe and drop any name no
+      // longer a participant, so a stale/duplicate entry can't create a phantom
+      // debtor or charge someone twice.
+      const participantSet = new Set(participants);
+      const names = Array.isArray(receipt.even_split_among)
+        ? [...new Set(receipt.even_split_among)].filter((name) =>
+            participantSet.has(name),
+          )
+        : [];
+      if (names.length > 0) {
+        const totalCents = cents(receipt.amount ?? 0);
+        bump(receipt.paid_by, totalCents);
+        const shares = splitCentsEvenly(totalCents, names.length);
+        names.forEach((name, i) => bump(name, -shares[i]));
+      }
+      continue;
+    }
+
     const items = Array.isArray(receipt.processed_data)
       ? receipt.processed_data
       : [];

@@ -1,6 +1,6 @@
 # Story 21.2: Even-Split Settle-Up Math
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -35,8 +35,20 @@ As a trip member, I want settle-up to divide an even-split receipt equally, so t
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8[1m] (Claude Opus 4.8, 1M context) — bmad-implement-epic pipeline
 
 ### Completion Notes List
 
+- New pure helper `utils/math/evenSplit.ts` → `splitCentsEvenly(totalCents, n)`: `floor` base + leftover cents to the first parts, sums back to the total; `[]` for `n <= 0`. Shared with the 21.3 UI so the readout and the ledger agree.
+- `compileLedger` branches on `split_mode === 'even'`: credits `paid_by` the full `amount` (cents) and debits each `even_split_among` name a `splitCentsEvenly` share. **Nobody selected → the receipt contributes nothing** (no unbalanced credit); itemless receipts work because the total is `amount`. The itemized path is untouched.
+- +8 unit tests (3 helper + 5 ledger): even division, indivisible cents, itemless, single participant, empty selection, each asserting the **balanced** (value-preserving) invariant. Existing 90 still pass (itemized regression guard, AC3) → **98 total**.
+- `npm run lint` (exit 0) + `npm run build` + `npm test` (98) clean.
+
 ### File List
+
+**Added:**
+- `utils/math/evenSplit.ts`
+- `tests/unit/evenSplit.test.ts`
+
+**Modified:**
+- `utils/math/ledgerCompiler.ts`

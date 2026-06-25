@@ -90,6 +90,9 @@ type Props = {
   onRemoteFields?: (fields: {
     name?: string | null;
     paid_by?: string | null;
+    split_mode?: string | null;
+    even_split_among?: string[] | null;
+    amount?: number | null;
   }) => void;
 };
 
@@ -271,6 +274,9 @@ export function ReceiptSplitView({
             tip?: number | null;
             name?: string | null;
             paid_by?: string | null;
+            split_mode?: string | null;
+            even_split_among?: string[] | null;
+            amount?: number | null;
           };
 
           // Apply remote line-item edits (Story 13.6) — ignore the echo of our
@@ -316,7 +322,13 @@ export function ReceiptSplitView({
 
           // Surface remote name/paid_by to the parent (Story 20.4); it applies
           // them with its own edit-guard (the detail page owns those fields).
-          onRemoteFieldsRef.current?.({ name: row.name, paid_by: row.paid_by });
+          onRemoteFieldsRef.current?.({
+            name: row.name,
+            paid_by: row.paid_by,
+            split_mode: row.split_mode,
+            even_split_among: row.even_split_among,
+            amount: row.amount,
+          });
         },
       )
       .subscribe();
