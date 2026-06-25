@@ -53,3 +53,7 @@ See [docs/prd/epic-19/epic_19_overview.md](docs/prd/epic-19/epic_19_overview.md)
 
 See [docs/prd/epic-20/epic_20_overview.md](docs/prd/epic-20/epic_20_overview.md) for the full Epic 20 story registry and acceptance criteria (Stories 20.1–20.4) — pre-UAT UX polish: global footer, simplified upload dialog, remove version history, realtime for name/paid-by/tip/tax.
 
+### Epic 21 detail
+
+See [docs/prd/epic-21/epic_21_overview.md](docs/prd/epic-21/epic_21_overview.md) for the full Epic 21 story registry and acceptance criteria (Stories 21.1–21.4) — Even-Split Mode: divide a whole receipt equally among selected participants (non-itemized split), one mode per receipt, equal-only v1.
+
