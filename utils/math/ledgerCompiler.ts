@@ -14,6 +14,7 @@ import {
   type BillItem,
   type BillSplitAllocation,
 } from "@/utils/math/billCalculations";
+import { splitCentsEvenly } from "@/utils/math/evenSplit";
 
 export interface LedgerReceipt {
   processed_data: BillItem[] | null;
@@ -60,6 +61,24 @@ export function compileLedger(
   };
 
   for (const receipt of receipts) {
+    // Even-Split Mode (Epic 21): divide `amount` equally among `even_split_among`
+    // instead of using the item matrix. Credit the payer the full total and debit
+    // each selected participant a cent-exact equal share, so the receipt nets to 0.
+    // With nobody selected the receipt contributes nothing (keeps the ledger
+    // balanced); itemless receipts work because the total comes from `amount`.
+    if (receipt.split_mode === "even") {
+      const names = Array.isArray(receipt.even_split_among)
+        ? receipt.even_split_among
+        : [];
+      if (names.length > 0) {
+        const totalCents = cents(receipt.amount ?? 0);
+        bump(receipt.paid_by, totalCents);
+        const shares = splitCentsEvenly(totalCents, names.length);
+        names.forEach((name, i) => bump(name, -shares[i]));
+      }
+      continue;
+    }
+
     const items = Array.isArray(receipt.processed_data)
       ? receipt.processed_data
       : [];
