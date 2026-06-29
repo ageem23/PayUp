@@ -163,6 +163,110 @@ describe("POST /api/ocr", () => {
     expect(res.status).toBe(502);
   });
 
+  it("synthesizes one item at the subtotal for an itemless credit-card slip", async () => {
+    // The Laser Wolf slip: no line items, just a printed subtotal + handwritten
+    // tip/total. Should still produce a single splittable line at the subtotal.
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({
+        merchant: "Laser Wolf",
+        items: [],
+        subtotal: 184,
+        tax: null,
+        tip: 37,
+        total: 221,
+      }),
+    });
+
+    const response = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(response.status).toBe(200);
+
+    const json = (await response.json()) as {
+      items: { id: string; name: string; price: number }[];
+      subtotal: number | null;
+      tip: number | null;
+      total: number | null;
+    };
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].price).toBe(184);
+    expect(json.items[0].name).toBe("Laser Wolf"); // merchant, when available
+    expect(typeof json.items[0].id).toBe("string");
+    expect(json.subtotal).toBe(184);
+    expect(json.tip).toBe(37);
+    expect(json.total).toBe(221);
+  });
+
+  it("backs the subtotal out of the total when no subtotal is printed", async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({
+        merchant: null,
+        items: [],
+        subtotal: null,
+        tax: 8,
+        tip: 20,
+        total: 128,
+      }),
+    });
+
+    const response = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(response.status).toBe(200);
+
+    const json = (await response.json()) as {
+      items: { name: string; price: number }[];
+    };
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].price).toBe(100); // 128 - 8 - 20
+    expect(json.items[0].name).toBe("Subtotal"); // generic when no merchant
+  });
+
+  it("leaves items empty when there are no items and no recoverable amount", async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({
+        merchant: "X",
+        items: [],
+        subtotal: null,
+        tax: null,
+        tip: null,
+        total: null,
+      }),
+    });
+
+    const response = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(response.status).toBe(200);
+
+    const json = (await response.json()) as { items: unknown[] };
+    expect(json.items).toHaveLength(0);
+  });
+
+  it("does not synthesize a fallback line when real items are present", async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({
+        merchant: "Luigi's",
+        items: [{ name: "Pizza", price: 19.99 }],
+        subtotal: 19.99,
+        tax: 1.6,
+        tip: 4,
+        total: 25.59,
+      }),
+    });
+
+    const response = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(response.status).toBe(200);
+
+    const json = (await response.json()) as {
+      items: { name: string }[];
+    };
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].name).toBe("Pizza");
+  });
+
   it("returns null for missing merchant/tax/tip (so they aren't auto-filled)", async () => {
     mockGenerateContent.mockResolvedValue({
       text: JSON.stringify({

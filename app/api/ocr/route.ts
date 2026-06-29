@@ -62,6 +62,32 @@ function normalizeNullableAmount(raw: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+// Round to whole cents to avoid float drift when backing a subtotal out of a
+// total (total - tax - tip).
+function roundCents(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+// Some receipts have no itemized lines — a credit-card slip prints only a
+// subtotal/tip/total. Those come back from the model as `items: []`, which the
+// client treats as "nothing to split". Rather than drop the receipt, derive a
+// single splittable amount: prefer the printed subtotal; otherwise back it out
+// of the total by removing tax and tip. Returns null when there's nothing to go
+// on (a genuinely empty/garbled scan), so the caller leaves items empty.
+function fallbackSubtotal(
+  subtotal: number | null,
+  total: number | null,
+  tax: number | null,
+  tip: number | null,
+): number | null {
+  if (subtotal !== null && subtotal > 0) return roundCents(subtotal);
+  if (total !== null && total > 0) {
+    const derived = roundCents(total - (tax ?? 0) - (tip ?? 0));
+    return derived > 0 ? derived : roundCents(total);
+  }
+  return null;
+}
+
 /**
  * Receipt OCR via Gemini. Server-only so GEMINI_API_KEY is never exposed to the
  * client. Returns the extracted line items; the client persists them to
@@ -137,6 +163,7 @@ export async function POST(request: Request) {
                 "Extract this receipt as JSON with these fields: " +
                 "`merchant` (the restaurant/store name, or null if not visible); " +
                 "`items` (an array of every purchased line item, each with `name`, a raw numeric `price`, and a `quantity`); " +
+                "`subtotal` (the pre-tax, pre-tip subtotal as a raw number, or null if not shown); " +
                 "`tax` (the tax amount as a raw number, or null if not shown); " +
                 "`tip` (the tip/gratuity amount, or null if not shown); " +
                 "`total` (the grand total, or null if not shown). " +
@@ -144,7 +171,10 @@ export async function POST(request: Request) {
                 "if that column has no number, use 1. Quantity may be fractional for weight/measure items (e.g. 0.5). " +
                 "Report `price` as the line's EXTENDED (total) price for all units — the right-hand amount — NOT the per-unit price. " +
                 "Use raw numeric values only — strip currency symbols ($, €) and labels like 'Total:'. " +
-                "Do NOT include tax, tip, or grand totals as entries in the `items` array.",
+                "Do NOT include tax, tip, or grand totals as entries in the `items` array. " +
+                "Some receipts (e.g. credit-card slips) have NO itemized lines — only a subtotal and total. " +
+                "In that case return an empty `items` array, but still report `subtotal`, `tip`, and `total`. " +
+                "Tip and total may be handwritten; read them if legible.",
             },
             { inlineData: { mimeType, data: base64 } },
           ],
@@ -171,6 +201,7 @@ export async function POST(request: Request) {
                 required: ["name", "price"],
               },
             },
+            subtotal: { type: Type.NUMBER, nullable: true },
             tax: { type: Type.NUMBER, nullable: true },
             tip: { type: Type.NUMBER, nullable: true },
             total: { type: Type.NUMBER, nullable: true },
@@ -237,11 +268,32 @@ export async function POST(request: Request) {
         parsed.merchant.trim().slice(0, 255)
       : null;
 
+  const subtotal = normalizeNullableAmount(parsed.subtotal);
+  const tax = normalizeNullableAmount(parsed.tax);
+  const tip = normalizeNullableAmount(parsed.tip);
+  const total = normalizeNullableAmount(parsed.total);
+
+  // Itemless receipt (e.g. a credit-card slip): synthesize one line at the
+  // subtotal so the bill is still splittable instead of looking unscanned. Tax
+  // and tip still prefill from their own fields, so this single line + tax + tip
+  // reconstructs the total. If we can't recover any amount, leave items empty.
+  if (items.length === 0) {
+    const fallbackPrice = fallbackSubtotal(subtotal, total, tax, tip);
+    if (fallbackPrice !== null) {
+      items.push({
+        id: crypto.randomUUID(),
+        name: merchant ?? "Subtotal",
+        price: fallbackPrice,
+      });
+    }
+  }
+
   return NextResponse.json({
     items,
     merchant,
-    tax: normalizeNullableAmount(parsed.tax),
-    tip: normalizeNullableAmount(parsed.tip),
-    total: normalizeNullableAmount(parsed.total),
+    subtotal,
+    tax,
+    tip,
+    total,
   });
 }
