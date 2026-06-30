@@ -157,6 +157,9 @@ export default function ReceiptMatrixPage() {
   // or mid-saving; returns prev unchanged when nothing applies so React skips the
   // re-render (and ignores the echo of our own write).
   const [savingMode, setSavingMode] = useState(false);
+  // True while OCR is scanning a fresh receipt — the even-split toggle is gated
+  // on this so a user can't switch before the total exists (Epic 21 race fix).
+  const [ocrProcessing, setOcrProcessing] = useState(false);
 
   const handleRemoteFields = useCallback(
     (fields: {
@@ -484,7 +487,7 @@ export default function ReceiptMatrixPage() {
         <button
           type="button"
           onClick={() => void switchMode("itemized")}
-          disabled={savingMode}
+          disabled={savingMode || ocrProcessing}
           aria-pressed={!isEven}
           className={`rounded-md px-3 py-1 disabled:opacity-50 ${
             !isEven ? "bg-foreground text-background" : ""
@@ -495,14 +498,20 @@ export default function ReceiptMatrixPage() {
         <button
           type="button"
           onClick={() => void switchMode("even")}
-          disabled={savingMode}
+          disabled={savingMode || ocrProcessing}
           aria-pressed={isEven}
+          title={ocrProcessing ? "Scanning the receipt…" : undefined}
           className={`rounded-md px-3 py-1 disabled:opacity-50 ${
             isEven ? "bg-foreground text-background" : ""
           }`}
         >
           Even split
         </button>
+        {ocrProcessing ? (
+          <span className="ml-2 self-center text-xs text-neutral-400">
+            Scanning…
+          </span>
+        ) : null}
       </div>
 
       {/* Single stacked column (Story 17.5): image → matrix/even-split, all breakpoints. */}
@@ -542,6 +551,7 @@ export default function ReceiptMatrixPage() {
               initialTax={receipt.tax ?? 0}
               initialTip={receipt.tip ?? 0}
               onPrefill={handlePrefill}
+              onProcessingChange={setOcrProcessing}
             >
               {(items) => (
                 <ReceiptSplitView
