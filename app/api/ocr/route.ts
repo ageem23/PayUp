@@ -82,8 +82,11 @@ function fallbackSubtotal(
 ): number | null {
   if (subtotal !== null && subtotal > 0) return roundCents(subtotal);
   if (total !== null && total > 0) {
+    // Back the subtotal out of the total. If tax + tip already meet or exceed
+    // the total the amounts are inconsistent (a garbled scan) — return null
+    // rather than synthesize a line that wouldn't reconcile with tax + tip.
     const derived = roundCents(total - (tax ?? 0) - (tip ?? 0));
-    return derived > 0 ? derived : roundCents(total);
+    return derived > 0 ? derived : null;
   }
   return null;
 }
@@ -173,7 +176,7 @@ export async function POST(request: Request) {
                 "Use raw numeric values only — strip currency symbols ($, €) and labels like 'Total:'. " +
                 "Do NOT include tax, tip, or grand totals as entries in the `items` array. " +
                 "Some receipts (e.g. credit-card slips) have NO itemized lines — only a subtotal and total. " +
-                "In that case return an empty `items` array, but still report `subtotal`, `tip`, and `total`. " +
+                "In that case return an empty `items` array, but still report `subtotal`, `tax`, `tip`, and `total` when visible. " +
                 "Tip and total may be handwritten; read them if legible.",
             },
             { inlineData: { mimeType, data: base64 } },

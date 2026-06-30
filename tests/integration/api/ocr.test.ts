@@ -222,6 +222,27 @@ describe("POST /api/ocr", () => {
     expect(json.items[0].name).toBe("Subtotal"); // generic when no merchant
   });
 
+  it("does not synthesize a line when tax + tip meet/exceed the total (inconsistent scan)", async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({
+        merchant: "X",
+        items: [],
+        subtotal: null,
+        tax: 0,
+        tip: 120,
+        total: 100,
+      }),
+    });
+
+    const response = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(response.status).toBe(200);
+
+    const json = (await response.json()) as { items: unknown[] };
+    expect(json.items).toHaveLength(0);
+  });
+
   it("leaves items empty when there are no items and no recoverable amount", async () => {
     mockGenerateContent.mockResolvedValue({
       text: JSON.stringify({
