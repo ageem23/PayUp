@@ -80,12 +80,18 @@ function fallbackSubtotal(
   tax: number | null,
   tip: number | null,
 ): number | null {
+  // If tax + tip already meet or exceed the total, the receipt's amounts are
+  // internally inconsistent (a garbled scan) — bail without synthesizing any
+  // line, even when a subtotal was printed, since it could never reconcile with
+  // the separately-returned tax + tip. A real receipt always has a positive
+  // subtotal, so this only fires on misreads.
+  const knownTaxAndTip = (tax ?? 0) + (tip ?? 0);
+  if (total !== null && total > 0 && knownTaxAndTip >= total) return null;
+
   if (subtotal !== null && subtotal > 0) return roundCents(subtotal);
   if (total !== null && total > 0) {
-    // Back the subtotal out of the total. If tax + tip already meet or exceed
-    // the total the amounts are inconsistent (a garbled scan) — return null
-    // rather than synthesize a line that wouldn't reconcile with tax + tip.
-    const derived = roundCents(total - (tax ?? 0) - (tip ?? 0));
+    // Back the subtotal out of the total (tax/tip removed).
+    const derived = roundCents(total - knownTaxAndTip);
     return derived > 0 ? derived : null;
   }
   return null;

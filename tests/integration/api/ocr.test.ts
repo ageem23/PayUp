@@ -243,6 +243,29 @@ describe("POST /api/ocr", () => {
     expect(json.items).toHaveLength(0);
   });
 
+  it("does not synthesize a line for an inconsistent scan even with a printed subtotal", async () => {
+    // tax + tip already exceed the total → the scan is garbled; the printed
+    // subtotal must not be trusted (it could never reconcile with the tip).
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({
+        merchant: "X",
+        items: [],
+        subtotal: 10,
+        tax: 0,
+        tip: 120,
+        total: 100,
+      }),
+    });
+
+    const response = await POST(
+      makeRequest({ receiptId: "r1", imageUrl: VALID_IMAGE }),
+    );
+    expect(response.status).toBe(200);
+
+    const json = (await response.json()) as { items: unknown[] };
+    expect(json.items).toHaveLength(0);
+  });
+
   it("leaves items empty when there are no items and no recoverable amount", async () => {
     mockGenerateContent.mockResolvedValue({
       text: JSON.stringify({
