@@ -201,7 +201,7 @@ development_status:
   # Epic 22: UX Polish — Feedback Round 1
   epic-22: in-progress
   22-1-login-logo-trim-align: done
-  22-2-footer-github-underline: backlog
+  22-2-footer-github-underline: done
   22-3-dashboard-banner: backlog
   22-4-appearance-controls-account: backlog
   22-5-trip-section-reorder: backlog
