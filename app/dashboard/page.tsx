@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import { ProfileSelector } from "@/components/feature/ProfileSelector";
 import { AccountMenu } from "@/components/feature/AccountMenu";
+import { BannerLogo } from "@/components/ui/BannerLogo";
 import { fetchProfilesByIds, type PublicProfile } from "@/utils/db/profile";
 
 type Trip = {
@@ -121,6 +122,10 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* Full-width PayUp banner beneath the trips heading (Story 22.3). Reuses
+          the shared, CSS-trimmed BannerLogo (Story 22.1). */}
+      <BannerLogo className="mb-6 w-full" />
 
       <div className="mb-6">
         <ProfileSelector />
