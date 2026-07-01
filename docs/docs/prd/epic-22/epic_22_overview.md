@@ -31,6 +31,7 @@ Qualitative — these are polish fixes validated by the reporter (the app owner)
 * **Story 22.3:** Add the full-width PayUp banner to the dashboard
 * **Story 22.4:** Consolidate theme toggle + badge color into the account page
 * **Story 22.5:** Reorder the trip-details sections
+* **Story 22.6:** Add a "← Dashboard" back link to the new-trip page
 
 **Sequencing note:** Recommended order is 22.1 → 22.5 as listed. Two couplings: (a) **22.1 introduces the shared `BannerLogo` component that 22.3 reuses**, so 22.1 must land before 22.3; (b) **22.3 and 22.4 both edit `app/dashboard/page.tsx`** (22.3 adds the banner, 22.4 removes the `ProfileSelector`) — do 22.3 first, then 22.4, to keep the diffs clean. 22.2 and 22.5 are independent. No migrations anywhere in this epic.
 
@@ -96,3 +97,17 @@ Qualitative — these are polish fixes validated by the reporter (the app owner)
 3. Section spacing (`mb-*` / `mt-*`) is adjusted so the new order has clean, consistent vertical rhythm (no doubled or missing gaps).
 4. The trip title/status header and navigation are unchanged; no change to data loading, realtime, or settle-up math.
 5. `npm run lint` + `npm run build` + `npm test` clean.
+
+## Story 22.6: Add a "← Dashboard" back link to the new-trip page
+**As a** user on the new-trip page,
+**I want** a "← Dashboard" link in the top-left like the rest of the app,
+**so that** I can go back without using the browser's back button.
+
+### Acceptance Criteria
+1. The new-trip page (`/dashboard/new`) shows a top-left **"← Dashboard"** link that navigates to `/dashboard`.
+2. It matches the existing back-link pattern used on the account and trip pages (`text-sm text-neutral-500 underline`, "← Dashboard" label).
+3. The link sits above the "New trip" heading; page layout/spacing stays clean.
+4. No change to trip creation, participant entry, or any other behavior.
+5. `npm run lint` + `npm run build` + `npm test` clean.
+
+_(Added from follow-up feedback after the initial five stories; ships in the same PR.)_
