@@ -7,6 +7,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/supabase/client";
 import { parseParticipantInput, addParticipants } from "@/utils/participants";
@@ -94,7 +95,10 @@ export default function NewTripPage() {
   return (
     <main className="flex min-h-screen justify-center p-4">
       <div className="w-full max-w-md">
-        <h1 className="mb-6 mt-8 text-2xl font-semibold">New trip</h1>
+        <Link href="/dashboard" className="text-sm text-neutral-500 underline">
+          ← Dashboard
+        </Link>
+        <h1 className="mb-6 mt-4 text-2xl font-semibold">New trip</h1>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <label className="flex flex-col gap-1 text-sm">

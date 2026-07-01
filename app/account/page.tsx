@@ -11,6 +11,8 @@ import {
   DISPLAY_NAME_MAX,
 } from "@/utils/db/profile";
 import { AccountSecurity } from "@/components/feature/AccountSecurity";
+import { ThemeSetting } from "@/components/feature/ThemeSetting";
+import { ProfileSelector } from "@/components/feature/ProfileSelector";
 
 /**
  * Account settings (Stories 15.1–15.5). Authenticated-only. Currently hosts the
@@ -172,6 +174,14 @@ export default function AccountPage() {
             </span>
           ) : null}
         </div>
+      </section>
+
+      {/* Appearance controls consolidated here from the floating toggle and the
+          dashboard (Story 22.4). */}
+      <section className="mt-8 flex flex-col gap-3">
+        <h2 className="text-lg font-medium">Appearance</h2>
+        <ThemeSetting />
+        <ProfileSelector />
       </section>
 
       <AccountSecurity currentEmail={user.email ?? ""} />

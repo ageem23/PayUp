@@ -10,7 +10,7 @@ export function Footer() {
           href="https://github.com/ageem23/PayUp"
           target="_blank"
           rel="noreferrer"
-          className="hover:underline"
+          className="underline"
         >
           GitHub
         </a>
@@ -21,7 +21,7 @@ export function Footer() {
           href="https://github.com/ageem23/PayUp/blob/main/HELP.md"
           target="_blank"
           rel="noreferrer"
-          className="hover:underline"
+          className="underline"
         >
           Getting Started
         </a>

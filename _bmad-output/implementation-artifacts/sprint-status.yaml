@@ -197,3 +197,13 @@ development_status:
   21-3-even-split-mode-ui: done
   21-4-realtime-sync-regression: done
   epic-21-retrospective: optional
+
+  # Epic 22: UX Polish — Feedback Round 1
+  epic-22: in-progress
+  22-1-login-logo-trim-align: done
+  22-2-footer-github-underline: done
+  22-3-dashboard-banner: done
+  22-4-appearance-controls-account: done
+  22-5-trip-section-reorder: done
+  22-6-new-trip-back-link: done
+  epic-22-retrospective: optional

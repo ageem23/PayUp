@@ -312,7 +312,37 @@ export default function TripHubPage() {
           {completionError}
         </p>
       ) : null}
-      <section className="mb-6 flex flex-col gap-2">
+      {/* Section order (Story 22.5): Receipts → Add a receipt → Participants →
+          Settle up → Share — the order people actually work in. */}
+      <section className="mt-6 flex flex-col gap-3">
+        <h2 className="text-lg font-medium">Receipts</h2>
+        {receiptsError ? (
+          <p
+            role="alert"
+            className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+          >
+            Could not load receipts. Try refreshing the page.
+          </p>
+        ) : (
+          <ReceiptList
+            tripId={trip.id}
+            receipts={receipts}
+            onDeleted={() => void refreshReceipts()}
+          />
+        )}
+      </section>
+
+      <section className="mt-6 flex flex-col gap-3">
+        <h2 className="text-lg font-medium">Add a receipt</h2>
+        <ReceiptQuotaGate
+          quota={quota}
+          onRequestAccess={() => setRequestAccessOpen(true)}
+        >
+          <ReceiptUploadZone onUploaded={(url) => setStagingUrl(url)} />
+        </ReceiptQuotaGate>
+      </section>
+
+      <section className="mt-6 flex flex-col gap-2">
         <h2 className="text-sm font-medium text-neutral-500">Participants</h2>
         <div className="flex flex-wrap items-center gap-2">
           {(trip.participants ?? []).map((name) => (
@@ -371,41 +401,13 @@ export default function TripHubPage() {
         ) : null}
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Add a receipt</h2>
-        <ReceiptQuotaGate
-          quota={quota}
-          onRequestAccess={() => setRequestAccessOpen(true)}
-        >
-          <ReceiptUploadZone onUploaded={(url) => setStagingUrl(url)} />
-        </ReceiptQuotaGate>
-      </section>
-
-      <section className="mt-6 flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Receipts</h2>
-        {receiptsError ? (
-          <p
-            role="alert"
-            className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
-          >
-            Could not load receipts. Try refreshing the page.
-          </p>
-        ) : (
-          <ReceiptList
-            tripId={trip.id}
-            receipts={receipts}
-            onDeleted={() => void refreshReceipts()}
-          />
-        )}
-      </section>
+      <SettleUpLedger transfers={transfers} error={receiptsError || !balanced} />
 
       {isOwner ? (
         <div className="mt-6">
           <InviteLinkManager tripId={trip.id} />
         </div>
       ) : null}
-
-      <SettleUpLedger transfers={transfers} error={receiptsError || !balanced} />
 
       {stagingUrl ? (
         <ReceiptStagingModal
