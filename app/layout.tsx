@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AccentColorProvider } from "@/context/AccentColorContext";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Footer } from "@/components/ui/Footer";
 import "./globals.css";
 
@@ -36,7 +35,6 @@ export default function RootLayout({
                 the bottom of the viewport on short pages and below the content
                 on long ones. */}
             <AuthProvider>{children}</AuthProvider>
-            <ThemeToggle />
             <Footer />
           </AccentColorProvider>
         </ThemeProvider>
