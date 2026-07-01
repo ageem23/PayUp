@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { BannerLogo } from "@/components/ui/BannerLogo";
 import { readSafeRedirect } from "@/utils/auth/redirect";
 
 type Mode = "login" | "register";
@@ -77,16 +77,10 @@ export default function LoginPage() {
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-4">
-      <div className="w-full max-w-xl">
-        <Image
-          src="/banner.png"
-          alt="PayUp — good food, good friends, no awkward math"
-          width={1280}
-          height={698}
-          priority
-          className="h-auto w-full rounded-lg shadow-xs"
-        />
-      </div>
+      {/* Constrained to the login card width (max-w-sm / 384px) so the logo's
+          edges line up with the card below; centered by the parent's
+          items-center. (Story 22.1) */}
+      <BannerLogo priority className="w-full max-w-sm" />
 
       <div className="w-full max-w-sm rounded-lg border border-neutral-300 p-6 shadow-xs dark:border-neutral-700">
         <button
