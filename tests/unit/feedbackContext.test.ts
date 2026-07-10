@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { contextFromPath } from "@/components/feature/FeedbackModal";
+import { contextFromPath } from "@/utils/feedbackContext";
 
 describe("contextFromPath (Story 23.3)", () => {
   it("captures the trip id on a trip page", () => {

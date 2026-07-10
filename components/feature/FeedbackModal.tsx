@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { submitFeedback, type FeedbackKind } from "@/utils/logging/log";
+import { contextFromPath } from "@/utils/feedbackContext";
 
 const COPY: Record<
   FeedbackKind,
@@ -21,19 +22,6 @@ const COPY: Record<
     noun: "suggestion",
   },
 };
-
-// Pull the trip/receipt in view from the pathname so a report carries context.
-// The widget lives in the root layout, so route params aren't available via
-// hooks — parse the path instead.
-export function contextFromPath(path: string): Record<string, string> {
-  const ctx: Record<string, string> = {};
-  const match = path.match(/^\/trips\/([^/]+)(?:\/receipts\/([^/]+))?/);
-  if (match) {
-    ctx.trip_id = match[1];
-    if (match[2]) ctx.receipt_id = match[2];
-  }
-  return ctx;
-}
 
 // Shared modal for both "Report an error" and "Suggest a feature" (Story 23.3),
 // parameterized by `kind`. Captures the message + current path + trip/receipt
