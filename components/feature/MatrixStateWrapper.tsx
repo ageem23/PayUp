@@ -28,6 +28,9 @@ type Props = {
   initialTip: number;
   /** Called after OCR prefills any of name/tax/tip, with the resolved values. */
   onPrefill?: (fields: PrefilledFields) => void;
+  /** Reports whether the OCR scan is in flight, so the parent can gate actions
+   *  (e.g. disabling the even-split toggle until a total exists, Epic 21). */
+  onProcessingChange?: (processing: boolean) => void;
   children: (items: LineItem[]) => ReactNode;
 };
 
@@ -39,6 +42,7 @@ export function MatrixStateWrapper({
   initialTax,
   initialTip,
   onPrefill,
+  onProcessingChange,
   children,
 }: Props) {
   const initialItems = Array.isArray(initialProcessedData)
@@ -48,6 +52,12 @@ export function MatrixStateWrapper({
   const [processing, setProcessing] = useState(initialItems.length === 0);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const startedRef = useRef(false);
+
+  // Surface scan progress to the parent (onProcessingChange is the stable
+  // setter from useState, so this only fires when `processing` flips).
+  useEffect(() => {
+    onProcessingChange?.(processing);
+  }, [processing, onProcessingChange]);
 
   // OCR is async; the user may rename the receipt or set a fee while the scan is
   // in flight. Read the LATEST values (not the mount-time closure) when deciding
