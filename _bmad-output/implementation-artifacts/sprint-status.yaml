@@ -215,5 +215,5 @@ development_status:
   23-3-feedback-forms: done
   23-4-client-error-logging: done
   23-5-server-error-logging: done
-  23-6-extend-error-coverage: backlog
+  23-6-extend-error-coverage: done
   epic-23-retrospective: optional

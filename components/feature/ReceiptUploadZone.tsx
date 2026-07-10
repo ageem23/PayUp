@@ -7,6 +7,7 @@ import {
   type DragEvent,
 } from "react";
 import { supabase } from "@/utils/supabase/client";
+import { logError } from "@/utils/logging/log";
 
 const ACCEPTED_EXTENSIONS = ["jpg", "jpeg", "png"];
 
@@ -38,6 +39,11 @@ export function ReceiptUploadZone({ onUploaded }: Props) {
           .upload(fileName, file);
 
         if (uploadError) {
+          void logError({
+            source: "client",
+            message: `Receipt image upload failed: ${uploadError.message}`,
+            context: { operation: "uploadReceiptImage" },
+          });
           setError(uploadError.message);
           return;
         }
@@ -46,7 +52,13 @@ export function ReceiptUploadZone({ onUploaded }: Props) {
           .from("receipt-images")
           .getPublicUrl(fileName);
         onUploaded(data.publicUrl);
-      } catch {
+      } catch (err) {
+        void logError({
+          source: "client",
+          message: `Receipt image upload threw: ${(err as Error)?.message ?? String(err)}`,
+          stack: (err as Error)?.stack ?? null,
+          context: { operation: "uploadReceiptImage" },
+        });
         setError("Upload failed. Please try again.");
       } finally {
         setUploading(false);

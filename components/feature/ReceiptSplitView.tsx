@@ -12,6 +12,7 @@ import type { SaveState } from "@/components/feature/SyncStatusBar";
 import { supabase } from "@/utils/supabase/client";
 import { patchReceiptFees } from "@/utils/db/receiptFees";
 import { patchReceiptSplits } from "@/utils/db/matrixPatch";
+import { logError } from "@/utils/logging/log";
 import { patchReceiptItems } from "@/utils/db/receiptEdits";
 import { calculateProportionalSplit } from "@/utils/math/billCalculations";
 
@@ -369,7 +370,13 @@ export function ReceiptSplitView({
       .then(() => {
         if (splitSeq.current === seq) setSplitSaveState("saved");
       })
-      .catch(() => {
+      .catch((err) => {
+        void logError({
+          source: "client",
+          message: `Receipt split save failed: ${(err as Error)?.message ?? String(err)}`,
+          stack: (err as Error)?.stack ?? null,
+          context: { operation: "patchReceiptSplits", receiptId },
+        });
         if (splitSeq.current === seq) setSplitSaveState("error");
       });
   };
