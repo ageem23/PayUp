@@ -13,6 +13,20 @@ export type ErrorSource = "client" | "server";
 // Keep payloads bounded so a pathological error/message can't bloat a row.
 const MESSAGE_MAX = 4000;
 const STACK_MAX = 8000;
+const CONTEXT_MAX = 4000; // serialized size cap for the context jsonb
+
+// Cap the serialized size of a context object so a caller passing a large
+// object (e.g. a full state snapshot) can't bloat a logging row.
+function boundContext(context?: Record<string, unknown>): Record<string, unknown> {
+  if (!context) return {};
+  try {
+    const json = JSON.stringify(context);
+    if (json.length <= CONTEXT_MAX) return context;
+    return { _truncated: true, preview: json.slice(0, CONTEXT_MAX) };
+  } catch {
+    return { _unserializable: true };
+  }
+}
 
 // Read the current user id from the locally-cached session (no network call).
 // Returns null when signed out or in a server context with no session — that's
@@ -49,7 +63,7 @@ export async function submitFeedback(input: {
       kind: input.kind,
       message: input.message.slice(0, MESSAGE_MAX),
       path: input.path ?? null,
-      context: input.context ?? {},
+      context: boundContext(input.context),
       user_agent: userAgent(),
     });
     return { ok: !error };
@@ -77,7 +91,7 @@ export async function logError(input: {
       message: (input.message || "Unknown error").slice(0, MESSAGE_MAX),
       stack: input.stack ? input.stack.slice(0, STACK_MAX) : null,
       path: input.path ?? null,
-      context: input.context ?? {},
+      context: boundContext(input.context),
       user_agent: userAgent(),
     });
   } catch {

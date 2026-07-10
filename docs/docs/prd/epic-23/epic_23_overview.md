@@ -89,7 +89,7 @@ Beta observability itself is the deliverable, measured by **coverage, not adopti
 1. The help menu's **"Report an error"** and **"Suggest a feature"** actions each open the **same** modal component (parameterized by `kind`), with a message `textarea`, a title/label reflecting the kind, and submit/cancel.
 2. On submit, `submitFeedback` records: the `kind` (`error_report` | `feature_request`), the message, the current path (`usePathname`), a `context` capturing the receipt and/or trip in view (route params on `/trips/[id]` and `/trips/[id]/receipts/[receiptId]`), and the user agent.
 3. Clear success confirmation and a non-blocking error state; empty messages are rejected client-side.
-4. The row lands in `feedback_reports` under the submitting user (`user_id = auth.uid()`) with the correct `kind`; nothing sensitive beyond the user's own message/context is stored.
+4. The row lands in `feedback_reports` under the submitting user (`user_id = auth.uid()`) with the correct `kind`. The stored fields are the user's own message, the page path, trip/receipt context, and the browser **user-agent** (captured to aid debugging) — no other personal data.
 5. A failed submit never crashes the app or the widget. `npm run lint` + `npm run build` + `npm test` clean.
 
 ## Story 23.4: Automatic client-side error logging

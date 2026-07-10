@@ -30,6 +30,14 @@ create policy "Users insert their own feedback" on public.feedback_reports
   for insert to authenticated
   with check (auth.uid() = user_id);
 
+-- Explicit table privilege (defensive/self-documenting; Supabase also grants
+-- public-schema tables to these roles by default). RLS still gates each row.
+grant insert on public.feedback_reports to authenticated;
+
+-- Dashboard queries and any retention cleanup filter/sort by time.
+create index if not exists idx_feedback_reports_created_at
+  on public.feedback_reports (created_at desc);
+
 -- ---------------------------------------------------------------------------
 -- error_logs: automatic client + server error capture
 -- ---------------------------------------------------------------------------
@@ -57,3 +65,14 @@ drop policy if exists "Anyone may insert an error log" on public.error_logs;
 create policy "Anyone may insert an error log" on public.error_logs
   for insert to anon, authenticated
   with check (user_id is null or auth.uid() = user_id);
+
+-- Explicit table privilege (defensive/self-documenting). RLS still gates rows;
+-- there is no select policy, so anon/authenticated can insert but never read.
+grant insert on public.error_logs to anon, authenticated;
+
+-- error_logs grows fastest (every boundary + listener event); index the time
+-- column so dashboard range queries and future retention DELETEs aren't full
+-- scans. Retention policy (e.g. delete rows older than N days) is an ops task,
+-- out of scope for this migration.
+create index if not exists idx_error_logs_created_at
+  on public.error_logs (created_at desc);

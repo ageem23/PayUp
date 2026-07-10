@@ -430,7 +430,13 @@ export function ReceiptSplitView({
           .then(() => {
             if (splitSeq.current === seq) setSplitSaveState("saved");
           })
-          .catch(() => {
+          .catch((err) => {
+            void logError({
+              source: "client",
+              message: `Receipt split save (delete) failed: ${(err as Error)?.message ?? String(err)}`,
+              stack: (err as Error)?.stack ?? null,
+              context: { operation: "patchReceiptSplits", receiptId },
+            });
             if (splitSeq.current === seq) setSplitSaveState("error");
           });
       }

@@ -13,12 +13,20 @@ export function HelpWidget() {
   const [open, setOpen] = useState(false);
   const [feedbackKind, setFeedbackKind] = useState<FeedbackKind | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // Close the menu on Escape or an outside click.
+  // When the menu opens, move focus into it; close on Escape (restoring focus
+  // to the trigger) or an outside click.
   useEffect(() => {
     if (!open) return;
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     const onPointer = (event: MouseEvent) => {
       if (
@@ -49,6 +57,7 @@ export function HelpWidget() {
       <div ref={containerRef} className="fixed bottom-4 right-4 z-50">
         {open ? (
           <div
+            ref={menuRef}
             role="menu"
             aria-label="Help"
             className="mb-2 w-56 overflow-hidden rounded-lg border border-neutral-300 bg-background shadow-md dark:border-neutral-700"
@@ -82,6 +91,7 @@ export function HelpWidget() {
           </div>
         ) : null}
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen((value) => !value)}
           aria-haspopup="menu"

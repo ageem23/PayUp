@@ -39,15 +39,42 @@ export function FeedbackModal({
     "idle",
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const copy = COPY[kind];
 
   useEffect(() => {
+    // Remember what had focus so we can restore it when the modal closes.
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     textareaRef.current?.focus();
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      // Focus trap: keep Tab / Shift+Tab within the dialog.
+      if (event.key === "Tab" && dialogRef.current) {
+        const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, textarea, input, a[href], [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
+
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      previouslyFocused?.focus?.();
+    };
   }, [onClose]);
 
   const handleSubmit = async () => {
@@ -75,6 +102,7 @@ export function FeedbackModal({
       onMouseDown={onClose}
     >
       <div
+        ref={dialogRef}
         className="w-full max-w-md rounded-lg border border-neutral-300 bg-background p-5 shadow-lg dark:border-neutral-700"
         onMouseDown={(event) => event.stopPropagation()}
       >
@@ -103,6 +131,7 @@ export function FeedbackModal({
                 if (status === "error") setStatus("idle");
               }}
               rows={5}
+              aria-label={`${copy.title} — your message`}
               placeholder={copy.placeholder}
               className="mt-3 w-full rounded border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
             />

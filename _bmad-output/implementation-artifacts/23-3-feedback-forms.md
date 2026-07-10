@@ -13,7 +13,7 @@ so that the team gets my report with the context of where I was.
 1. The help menu's "Report an error" and "Suggest a feature" actions each open the same modal component (parameterized by `kind`), with a message `textarea`, a title/label reflecting the kind, and submit/cancel.
 2. On submit, `submitFeedback` records the `kind`, message, current path (`usePathname`), a `context` of the receipt/trip in view (route params on `/trips/[id]` and `/trips/[id]/receipts/[receiptId]`), and the user agent.
 3. Clear success confirmation and a non-blocking error state; empty messages rejected client-side.
-4. The row lands in `feedback_reports` under the submitting user with the correct `kind`; nothing sensitive beyond the user's own message/context is stored.
+4. The row lands in `feedback_reports` under the submitting user with the correct `kind`. Stored fields: the user's message, page path, trip/receipt context, and browser user-agent (captured to aid debugging) — no other personal data.
 5. A failed submit never crashes the app or the widget. `npm run lint` + `npm run build` + `npm test` clean.
 
 ## Tasks / Subtasks
