@@ -3,6 +3,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AccentColorProvider } from "@/context/AccentColorContext";
 import { Footer } from "@/components/ui/Footer";
+import { HelpWidget } from "@/components/feature/HelpWidget";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -35,6 +36,7 @@ export default function RootLayout({
                 the bottom of the viewport on short pages and below the content
                 on long ones. */}
             <AuthProvider>{children}</AuthProvider>
+            <HelpWidget />
             <Footer />
           </AccentColorProvider>
         </ThemeProvider>

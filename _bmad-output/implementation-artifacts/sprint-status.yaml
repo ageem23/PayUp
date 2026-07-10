@@ -211,7 +211,7 @@ development_status:
   # Epic 23: Beta Readiness — Feedback Capture & Error Logging
   epic-23: in-progress
   23-1-logging-schema-helpers: done
-  23-2-help-widget-menu: backlog
+  23-2-help-widget-menu: done
   23-3-feedback-forms: backlog
   23-4-client-error-logging: backlog
   23-5-server-error-logging: backlog
