@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { BannerLogo } from "@/components/ui/BannerLogo";
 import { readSafeRedirect } from "@/utils/auth/redirect";
+import { logError } from "@/utils/logging/log";
 
 type Mode = "login" | "register";
 
@@ -49,6 +50,12 @@ export default function LoginPage() {
     // and never reach the line after. Only an immediate failure returns here.
     const { error: oauthError } = await signInWithGoogle();
     if (oauthError) {
+      void logError({
+        source: "client",
+        message: `Google sign-in failed: ${oauthError}`,
+        path: "/",
+        context: { operation: "signInWithGoogle" },
+      });
       setError(oauthError);
       setLoading(false);
     }
@@ -68,6 +75,12 @@ export default function LoginPage() {
     // Open signup (Epic 14): a whitelist miss is no longer a rejection — any
     // auth error is just shown inline. There is no /unauthorized dead-end.
     if (authError) {
+      void logError({
+        source: "client",
+        message: `${mode === "login" ? "Sign-in" : "Sign-up"} failed: ${authError}`,
+        path: "/",
+        context: { operation: mode === "login" ? "signIn" : "signUp" },
+      });
       setError(authError);
       setLoading(false);
       return;

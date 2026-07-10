@@ -13,6 +13,7 @@ import {
 import { AccountSecurity } from "@/components/feature/AccountSecurity";
 import { ThemeSetting } from "@/components/feature/ThemeSetting";
 import { ProfileSelector } from "@/components/feature/ProfileSelector";
+import { logError } from "@/utils/logging/log";
 
 /**
  * Account settings (Stories 15.1–15.5). Authenticated-only. Currently hosts the
@@ -63,6 +64,12 @@ export default function AccountPage() {
       if (result.ok) {
         setAvatarUrl(result.url);
       } else {
+        void logError({
+          source: "client",
+          message: `Avatar upload failed: ${result.error}`,
+          path: "/account",
+          context: { operation: "uploadAvatar" },
+        });
         setAvatarError(result.error);
       }
     },

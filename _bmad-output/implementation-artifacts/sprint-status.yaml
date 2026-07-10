@@ -207,3 +207,13 @@ development_status:
   22-5-trip-section-reorder: done
   22-6-new-trip-back-link: done
   epic-22-retrospective: optional
+
+  # Epic 23: Beta Readiness — Feedback Capture & Error Logging
+  epic-23: in-progress
+  23-1-logging-schema-helpers: done
+  23-2-help-widget-menu: done
+  23-3-feedback-forms: done
+  23-4-client-error-logging: done
+  23-5-server-error-logging: done
+  23-6-extend-error-coverage: done
+  epic-23-retrospective: optional

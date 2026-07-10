@@ -8,6 +8,7 @@ import { supabase } from "@/utils/supabase/client";
 import { AccountMenu } from "@/components/feature/AccountMenu";
 import { BannerLogo } from "@/components/ui/BannerLogo";
 import { fetchProfilesByIds, type PublicProfile } from "@/utils/db/profile";
+import { logError } from "@/utils/logging/log";
 
 type Trip = {
   id: string;
@@ -49,6 +50,12 @@ export default function DashboardPage() {
         .order("created_at", { ascending: false });
 
       if (fetchError) {
+        void logError({
+          source: "client",
+          message: `Dashboard trip load failed: ${fetchError.message}`,
+          path: "/dashboard",
+          context: { operation: "loadTrips" },
+        });
         setError("Could not load your trips. Please try again.");
         setTrips([]);
         setOwners(new Map());
@@ -66,7 +73,14 @@ export default function DashboardPage() {
             : new Map(),
         );
       }
-    } catch {
+    } catch (err) {
+      void logError({
+        source: "client",
+        message: `Dashboard trip load threw: ${(err as Error)?.message ?? String(err)}`,
+        stack: (err as Error)?.stack ?? null,
+        path: "/dashboard",
+        context: { operation: "loadTrips" },
+      });
       setError("Could not load your trips. Please try again.");
       setTrips([]);
       setOwners(new Map());

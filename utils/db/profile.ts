@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase/client";
+import { logError } from "@/utils/logging/log";
 
 export const DISPLAY_NAME_MAX = 60;
 
@@ -29,7 +30,14 @@ export async function fetchProfile(): Promise<Profile | null> {
     .select("display_name, avatar_url, theme, accent_color")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (error) return null;
+  if (error) {
+    void logError({
+      source: "client",
+      message: `Profile fetch failed: ${error.message}`,
+      context: { operation: "fetchProfile" },
+    });
+    return null;
+  }
 
   return {
     displayName: (data?.display_name as string | null) ?? null,

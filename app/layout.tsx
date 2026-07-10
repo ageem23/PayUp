@@ -3,6 +3,8 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AccentColorProvider } from "@/context/AccentColorContext";
 import { Footer } from "@/components/ui/Footer";
+import { HelpWidget } from "@/components/feature/HelpWidget";
+import { ErrorListener } from "@/components/feature/ErrorListener";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -34,7 +36,9 @@ export default function RootLayout({
             {/* Page content fills the space so the footer (Story 20.1) sits at
                 the bottom of the viewport on short pages and below the content
                 on long ones. */}
+            <ErrorListener />
             <AuthProvider>{children}</AuthProvider>
+            <HelpWidget />
             <Footer />
           </AccentColorProvider>
         </ThemeProvider>
