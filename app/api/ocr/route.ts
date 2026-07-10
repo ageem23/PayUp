@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { supabase } from "@/utils/supabase/client";
 import { expandQuantityLine } from "@/utils/ocr/expandQuantity";
+import { logError } from "@/utils/logging/log";
 
 type RawLine = { name?: unknown; price?: unknown; quantity?: unknown };
 type LineItem = { id: string; name: string; price: number };
@@ -224,6 +225,15 @@ export async function POST(request: Request) {
     // Surface the real upstream error server-side; the client still gets a
     // generic message (no stack/internal detail leaked).
     console.error("[ocr] Gemini generateContent failed:", error);
+    // Also record the scan failure to error_logs (Story 23.5) — scan-failure
+    // rate is a key beta health metric. Best-effort; never changes the response.
+    void logError({
+      source: "server",
+      message: `OCR generateContent failed: ${(error as Error)?.message ?? String(error)}`,
+      stack: (error as Error)?.stack ?? null,
+      path: "/api/ocr",
+      context: { receiptId, stage: "generateContent" },
+    });
     return NextResponse.json(
       { error: "Receipt scanning failed. Please try again." },
       { status: 502 },
@@ -245,6 +255,13 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     console.error("[ocr] Gemini returned invalid JSON:", error);
+    void logError({
+      source: "server",
+      message: `OCR parse failure: ${(error as Error)?.message ?? String(error)}`,
+      stack: (error as Error)?.stack ?? null,
+      path: "/api/ocr",
+      context: { receiptId, stage: "parse" },
+    });
     return NextResponse.json(
       { error: "Receipt scanning failed. Please try again." },
       { status: 502 },
