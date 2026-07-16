@@ -10,23 +10,23 @@
     "test": "jest"
   },
   "dependencies": {
-    "@google/genai": "^2.9.0",
-    "@supabase/supabase-js": "^2.108.2",
-    "next": "^16.2.9",
+    "@google/genai": "^2.12.0",
+    "@supabase/supabase-js": "^2.110.7",
+    "next": "^16.2.10",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.1",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "eslint": "^10.5.0",
-    "eslint-config-next": "^16.2.9",
+    "eslint": "^10.7.0",
+    "eslint-config-next": "^16.2.10",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
-    "postcss": "^8.5.10",
+    "postcss": "^8.5.19",
     "tailwindcss": "^4.3.1",
     "ts-node": "^10.9.2",
     "typescript": "^5"
